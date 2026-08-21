@@ -53,8 +53,12 @@ function buildPaint(spec) {
 
   if (spec.type === 'radial') {
     // color2 sits in the centre, color1 at the edges (central radial blur)
-    var cx = (typeof spec.centerX === 'number' ? spec.centerX : 50) / 100;
-    var cy = (typeof spec.centerY === 'number' ? spec.centerY : 62) / 100;
+    var offsetX = typeof spec.offsetX === 'number' ? spec.offsetX : 0;
+    var offsetY = typeof spec.offsetY === 'number' ? spec.offsetY : 0;
+    var cx = (50 + offsetX) / 100;
+    // Figma's gradientTransform Y for this paint renders inverted relative
+    // to the CSS preview's Y (0%=top), so flip it here to match.
+    var cy = 1 - (62 + offsetY) / 100;
     return {
       type: 'GRADIENT_RADIAL',
       gradientTransform: radialTransform(cx, cy, 0.7, 0.9),

@@ -58,10 +58,16 @@ Open console**.
 - **Gradient math:** softness maps to how far the two colour stops sit from
   the 50% midpoint — `0` = a hard edge, `100` = a full-bleed blend. See
   `design/HANDOFF.md` for the exact formula and per-style defaults.
-- **Radial positioning:** the "Central radial blur" type exposes Center X /
-  Center Y sliders (0–100%, default 50/62 to match the original preset) that
-  move the blur's center; both the live preview and the applied Figma paint
-  read from the same `spec.centerX`/`centerY` values.
+- **Radial positioning:** the "Central radial blur" type exposes Position X /
+  Position Y sliders (-50 to +50, default 0/0) that *offset* the blur's
+  center from the style's baseline position (50%, 62%) — `0/0` reproduces
+  the original look. Both the live preview and the applied Figma paint
+  compute their center from the same `spec.offsetX`/`offsetY` values, though
+  `code.js` flips the Y offset's sign before building the Figma transform
+  (see the comment in `buildPaint`) because Figma's `gradientTransform` Y
+  axis renders inverted relative to the CSS preview for this paint — that's
+  a hypothesis fix based on reported symptoms, not something verified
+  against a live Figma session, so double-check it after pulling.
 - **Grain:** Figma has no procedural noise, so `ui.html` renders a noise
   pattern to a `<canvas>`, exports it as PNG bytes, and `code.js` applies it
   as a tiled `IMAGE` fill with `OVERLAY` blend mode on top of the gradient.
@@ -73,11 +79,13 @@ Open console**.
 ## Known gaps
 
 - `linearTransform` is still untested against real Figma — worth double
-  checking angle direction against the CSS preview. `radialTransform` had a
-  bug (the gradient's true center landed far outside the layer instead of at
-  the intended position) that's now fixed, but the corrected version hasn't
-  been confirmed on canvas yet either — verify the radial preset looks
-  centered and matches the panel preview after pulling this change.
+  checking angle direction against the CSS preview.
+- The radial gradient's Y axis needed a sign flip to match the CSS preview
+  (see "Radial positioning" above) — this was arrived at from reported
+  symptoms, not confirmed against Figma directly, so if it's still off,
+  the next report should say exactly how (still flipped / flipped the other
+  way / center in the wrong place / wrong size) so the fix can be narrowed
+  further.
 - No delete/rename for saved custom presets.
 - Only two colour stops per style (no multi-stop gradients).
 - No export to PNG/SVG.
