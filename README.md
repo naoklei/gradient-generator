@@ -3,8 +3,8 @@
 A Figma plugin that applies a gradient fill to the currently selected layer(s)
 from six presets (or fully custom colours/type/softness/grain), using native
 Figma gradient paints plus an optional baked-noise grain layer. Select a
-layer, pick or tweak a style, and it updates live — no separate "create"
-step, and the fill inherits the selected layer's size.
+layer, pick a preset or dial in your own settings, then hit Apply — the fill
+inherits the selected layer's size, no separate "create" step.
 
 ## Run it in Figma (development)
 
@@ -42,15 +42,26 @@ Open console**.
   and tells the UI whether anything fillable (`'fills' in node`) is selected.
   With nothing selected, the panel shows a prompt and the preset/controls
   section is disabled — there's nothing to apply to yet.
-- **Live apply:** clicking a preset, or changing any control (colour, type,
-  angle, softness, grain), immediately re-applies the gradient to the
-  selected layer(s) — no "create frame" button. Size is never set by the
-  plugin; the fill just paints onto whatever geometry is selected, so it
-  inherits that layer's width/height automatically (Figma's gradient
-  transforms are defined in unit space, not pixels).
+- **Preset click = instant apply; everything else needs Apply:** clicking a
+  preset swatch immediately re-applies that gradient to the selected
+  layer(s) — it's a single discrete action, not something you drag. Slider
+  and colour edits (angle, softness, grain, radial position, etc.) only
+  update the live panel preview as you adjust them; nothing is written to
+  the canvas until you click the **Apply** button (top-right, above the
+  preview). This split exists because writing to the Figma document on
+  every slider tick made dragging visibly laggy — decoupling edit-from-apply
+  keeps the panel responsive regardless of how expensive the eventual write
+  is. Size is never set by the plugin; the fill just paints onto whatever
+  geometry is selected, so it inherits that layer's width/height
+  automatically (Figma's gradient transforms are defined in unit space, not
+  pixels).
 - **Gradient math:** softness maps to how far the two colour stops sit from
   the 50% midpoint — `0` = a hard edge, `100` = a full-bleed blend. See
   `design/HANDOFF.md` for the exact formula and per-style defaults.
+- **Radial positioning:** the "Central radial blur" type exposes Center X /
+  Center Y sliders (0–100%, default 50/62 to match the original preset) that
+  move the blur's center; both the live preview and the applied Figma paint
+  read from the same `spec.centerX`/`centerY` values.
 - **Grain:** Figma has no procedural noise, so `ui.html` renders a noise
   pattern to a `<canvas>`, exports it as PNG bytes, and `code.js` applies it
   as a tiled `IMAGE` fill with `OVERLAY` blend mode on top of the gradient.
@@ -61,9 +72,12 @@ Open console**.
 
 ## Known gaps
 
-- `linearTransform` / `radialTransform` in `code.js` were untested in real
-  Figma — worth double-checking angle direction and radial framing against
-  the CSS preview in `design/Gradient Backgrounds.dc.html`.
+- `linearTransform` is still untested against real Figma — worth double
+  checking angle direction against the CSS preview. `radialTransform` had a
+  bug (the gradient's true center landed far outside the layer instead of at
+  the intended position) that's now fixed, but the corrected version hasn't
+  been confirmed on canvas yet either — verify the radial preset looks
+  centered and matches the panel preview after pulling this change.
 - No delete/rename for saved custom presets.
 - Only two colour stops per style (no multi-stop gradients).
 - No export to PNG/SVG.
