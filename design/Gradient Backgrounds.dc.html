@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kumbh+Sans:wght@300;400;500&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #0c0c0a; }
+  a { color: #86efac; text-decoration: none; }
+  a:hover { color: #d6d2ca; }
+  input[type=range].soft { -webkit-appearance: none; appearance: none; height: 2px; background: rgba(255,255,255,0.12); outline: none; cursor: pointer; }
+  input[type=range].soft::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; border-radius: 2px; background: #d6d2ca; transition: background 150ms ease; }
+  input[type=range].soft:hover::-webkit-slider-thumb { background: #86efac; }
+  input[type=range].soft::-moz-range-thumb { width: 10px; height: 10px; border: 0; border-radius: 2px; background: #d6d2ca; }
+</style>
+</helmet>
+<div style="background:#0c0c0a; color:#d6d2ca; font-family:'Kumbh Sans',sans-serif; padding:80px 48px; min-height:100vh; box-sizing:border-box">
+  <div style="max-width:1200px; margin:0 auto; display:flex; flex-direction:column; gap:64px">
+
+    <div style="display:flex; flex-direction:column; gap:16px; max-width:560px">
+      <div style="font-family:'Space Grotesk',sans-serif; font-size:13px; letter-spacing:0.08em; text-transform:uppercase; color:#7a7670">Six gradients · 19:9</div>
+      <div style="font-size:34px; font-weight:300; letter-spacing:-0.01em; line-height:1.2">Gradient backgrounds</div>
+      <div style="font-size:18px; font-weight:300; line-height:1.6; color:#7a7670; text-wrap:pretty">Each panel renders at 1140 × 540 — a true 19:9 frame. Colours and transition types follow the supplied table exactly. Softness is set per panel below each frame.</div>
+    </div>
+
+    <sc-for list="{{ panels }}" as="p" hint-placeholder-count="6">
+      <div style="display:flex; flex-direction:column; gap:16px">
+        <div style="width:100%; aspect-ratio:19/9; border-radius:12px; border:1px solid rgba(255,255,255,0.06); box-shadow:0 4px 20px rgba(0,0,0,0.25); overflow:hidden; background:{{ p.css }}"></div>
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px 24px; font-family:'Space Grotesk',sans-serif; font-size:13px; letter-spacing:0.06em; text-transform:uppercase">
+          <div style="color:#d6d2ca">{{ p.name }}</div>
+          <div style="color:#706c67">{{ p.meta }}</div>
+          <div style="display:flex; align-items:center; gap:24px; margin-left:auto">
+            <div style="display:flex; align-items:center; gap:12px">
+              <div style="color:#706c67; font-size:12px">Softness</div>
+              <input type="range" class="soft" min="0" max="100" step="1" value="{{ p.soft }}" onChange="{{ p.onSoft }}" style="width:120px" />
+              <div style="color:#d6d2ca; font-size:12px; width:30px; text-align:right; font-variant-numeric:tabular-nums">{{ p.soft }}</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px">
+              <div style="color:#706c67; font-size:12px">Grain</div>
+              <input type="range" class="soft" min="0" max="60" step="1" value="{{ p.grain }}" onChange="{{ p.onGrain }}" style="width:120px" />
+              <div style="color:#d6d2ca; font-size:12px; width:30px; text-align:right; font-variant-numeric:tabular-nums">{{ p.grain }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-for>
+
+    <div style="font-family:'Space Grotesk',sans-serif; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:#706c67; border-top:1px solid rgba(255,255,255,0.06); padding-top:24px">Six styles · flat CSS gradients · no raster assets</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;softness&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:null,&quot;min&quot;:0,&quot;max&quot;:100,&quot;step&quot;:5,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Gradients&quot;},&quot;diagonalAngle&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:135,&quot;min&quot;:0,&quot;max&quot;:360,&quot;step&quot;:5,&quot;unit&quot;:&quot;deg&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Gradients&quot;},&quot;grain&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:18,&quot;min&quot;:0,&quot;max&quot;:60,&quot;step&quot;:2,&quot;unit&quot;:&quot;%&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Grain&quot;},&quot;grainScale&quot;:{&quot;editor&quot;:&quot;float&quot;,&quot;default&quot;:0.8,&quot;min&quot;:0.2,&quot;max&quot;:2,&quot;step&quot;:0.1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Grain&quot;}}">
+const DEFS = [
+  { name: 'Vibrant Mint / Orange', meta: 'Diagonal blend · #98FFD9 → #FF6B00', soft: 50,
+    build: (a, b, ang) => `linear-gradient(${ang}deg, #98FFD9 ${a}%, #FF6B00 ${b}%)` },
+  { name: 'Cool Sage / Oat', meta: 'Soft linear blend · #8DAA81 → #F5E8D3', soft: 90,
+    build: (a, b) => `linear-gradient(160deg, #8DAA81 ${a}%, #B9C7A8 50%, #F5E8D3 ${b}%)` },
+  { name: 'Coral / Navy', meta: 'Central radial blur · #1A374D → #E08E8D', soft: 85,
+    build: (a, b) => `radial-gradient(ellipse 70% 90% at 50% 62%, #E08E8D ${a}%, #A05F63 ${(a + 50) / 2}%, #1A374D ${b}%)` },
+  { name: 'Rose / Plum', meta: 'Vertical linear blend · #4D1A40 → #B56576', soft: 100,
+    build: (a, b) => `linear-gradient(180deg, #4D1A40 ${a}%, #B56576 ${b}%)` },
+  { name: 'Futuristic Purple', meta: 'Diagonal blend · #FF00FF → #1A1A4D', soft: 50,
+    build: (a, b, ang) => `linear-gradient(${ang}deg, #FF00FF ${a}%, #1A1A4D ${b}%)` },
+  { name: 'Forest / Sky Blue', meta: 'Sharp angular gradient · #1A4D2E → #87CEEB', soft: 8,
+    build: (a, b) => `linear-gradient(115deg, #1A4D2E ${a}%, #87CEEB ${b}%)` }
+];
+
+class Component extends DCLogic {
+  state = { soft: null, grain: null };
+
+  renderVals() {
+    const base = this.props.softness;
+    const soft = this.state.soft || DEFS.map(d => (base == null ? d.soft : base));
+    const grains = this.state.grain || DEFS.map(() => this.props.grain ?? 18);
+    const angle = this.props.diagonalAngle ?? 135;
+    const scale = this.props.grainScale ?? 0.8;
+    const noiseFor = (g) => g > 0
+      ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='${scale}' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='${g / 100}'/%3E%3C/svg%3E"), `
+      : '';
+
+    const panels = DEFS.map((d, i) => {
+      const s = soft[i], g = grains[i];
+      const a = Math.max(0, 50 - s * 0.5), b = Math.min(100, 50 + s * 0.5);
+      return {
+        name: d.name, meta: d.meta, soft: s, grain: g,
+        css: noiseFor(g) + d.build(a, b, angle),
+        onSoft: (e) => {
+          const v = Number(e.target.value);
+          this.setState({ soft: soft.map((x, j) => (j === i ? v : x)) });
+        },
+        onGrain: (e) => {
+          const v = Number(e.target.value);
+          this.setState({ grain: grains.map((x, j) => (j === i ? v : x)) });
+        }
+      };
+    });
+    return { panels };
+  }
+}
+</script>
+</body>
+</html>
