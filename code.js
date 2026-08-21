@@ -1,13 +1,15 @@
 // Gradient Backgrounds — Figma plugin
-// Receives a gradient spec from the UI and creates a frame with native gradient paint
-// (plus an optional tiled noise image fill for grain).
+// Applies a gradient spec from the UI directly onto the selected layer(s)
+// (native gradient paint plus an optional tiled noise image fill for grain).
 
-figma.showUI(__html__, { width: 380, height: 640, themeColors: false });
+figma.showUI(__html__, { width: 380, height: 620, themeColors: false });
 
 const STORE_KEY = 'customPresets';
 
+var loadedPresets = [];
 figma.clientStorage.getAsync(STORE_KEY).then(function (saved) {
-  figma.ui.postMessage({ type: 'presets', presets: saved || [] });
+  loadedPresets = saved || [];
+  figma.ui.postMessage({ type: 'presets', presets: loadedPresets });
 });
 
 function hexToRgb(hex) {
@@ -20,7 +22,8 @@ function hexToRgb(hex) {
   };
 }
 
-// Figma gradient transforms map gradient space -> object space (unit square).
+// Figma gradient transforms map gradient space -> object space (unit square),
+// so they don't depend on the target node's actual size.
 function linearTransform(angleDeg) {
   // CSS angles run clockwise from "to top"; convert to the vector Figma expects.
   var a = ((angleDeg - 90) * Math.PI) / 180;
@@ -69,21 +72,54 @@ function buildPaint(spec) {
   };
 }
 
+function getFillableNodes() {
+  return figma.currentPage.selection.filter(function (n) {
+    return 'fills' in n;
+  });
+}
+
+function postSelection() {
+  var nodes = getFillableNodes();
+  if (nodes.length === 0) {
+    figma.ui.postMessage({ type: 'selection', hasSelection: false });
+    return;
+  }
+  var first = nodes[0];
+  figma.ui.postMessage({
+    type: 'selection',
+    hasSelection: true,
+    count: nodes.length,
+    width: first.width,
+    height: first.height
+  });
+}
+
+figma.on('selectionchange', postSelection);
+postSelection();
+
 figma.ui.onmessage = async function (msg) {
+  if (msg.type === 'ui-ready') {
+    // The UI just attached its listener — resend state in case the
+    // startup messages fired before it was ready to receive them.
+    figma.ui.postMessage({ type: 'presets', presets: loadedPresets });
+    postSelection();
+    return;
+  }
+
   if (msg.type === 'save-presets') {
     await figma.clientStorage.setAsync(STORE_KEY, msg.presets);
     return;
   }
 
-  if (msg.type !== 'create') return;
+  if (msg.type !== 'apply') return;
+
+  var nodes = getFillableNodes();
+  if (nodes.length === 0) {
+    figma.notify('Select a layer first');
+    return;
+  }
 
   var spec = msg.spec;
-  var frame = figma.createFrame();
-  frame.name = spec.name || 'Gradient';
-  frame.resize(spec.width, spec.height);
-  frame.cornerRadius = spec.radius || 0;
-  frame.clipsContent = true;
-
   var fills = [buildPaint(spec)];
 
   if (spec.grain > 0 && msg.noise) {
@@ -98,14 +134,11 @@ figma.ui.onmessage = async function (msg) {
     });
   }
 
-  frame.fills = fills;
-
-  var vp = figma.viewport.center;
-  frame.x = Math.round(vp.x - spec.width / 2);
-  frame.y = Math.round(vp.y - spec.height / 2);
-
-  figma.currentPage.appendChild(frame);
-  figma.currentPage.selection = [frame];
-  figma.viewport.scrollAndZoomIntoView([frame]);
-  figma.notify(frame.name + ' · ' + spec.width + ' × ' + spec.height);
+  nodes.forEach(function (n) {
+    try {
+      n.fills = fills;
+    } catch (e) {
+      // node doesn't accept this fill set (e.g. locked) — skip it
+    }
+  });
 };
