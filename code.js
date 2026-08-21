@@ -36,9 +36,11 @@ function linearTransform(angleDeg) {
 }
 
 function radialTransform(cx, cy, rx, ry) {
+  // Figma places the gradient's center handle at the translation (cx, cy),
+  // with the horizontal/vertical radius handles offset by (rx, 0) and (0, ry).
   return [
-    [rx, 0, cx - rx / 2],
-    [0, ry, cy - ry / 2]
+    [rx, 0, cx],
+    [0, ry, cy]
   ];
 }
 
@@ -51,9 +53,11 @@ function buildPaint(spec) {
 
   if (spec.type === 'radial') {
     // color2 sits in the centre, color1 at the edges (central radial blur)
+    var cx = (typeof spec.centerX === 'number' ? spec.centerX : 50) / 100;
+    var cy = (typeof spec.centerY === 'number' ? spec.centerY : 62) / 100;
     return {
       type: 'GRADIENT_RADIAL',
-      gradientTransform: radialTransform(0.5, 0.62, 1.4, 1.8),
+      gradientTransform: radialTransform(cx, cy, 0.7, 0.9),
       gradientStops: [
         { position: a, color: { r: c2.r, g: c2.g, b: c2.b, a: 1 } },
         { position: b, color: { r: c1.r, g: c1.g, b: c1.b, a: 1 } }
