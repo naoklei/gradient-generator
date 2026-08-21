@@ -62,12 +62,15 @@ Open console**.
   Position Y sliders (-50 to +50, default 0/0) that *offset* the blur's
   center from the style's baseline position (50%, 62%) — `0/0` reproduces
   the original look. Both the live preview and the applied Figma paint
-  compute their center from the same `spec.offsetX`/`offsetY` values, though
-  `code.js` flips the Y offset's sign before building the Figma transform
-  (see the comment in `buildPaint`) because Figma's `gradientTransform` Y
-  axis renders inverted relative to the CSS preview for this paint — that's
-  a hypothesis fix based on reported symptoms, not something verified
-  against a live Figma session, so double-check it after pulling.
+  compute their center from the same `spec.offsetX`/`offsetY` values.
+- **Y-axis flip:** confirmed by testing (every preset/type came out
+  vertically mirrored on canvas vs. the panel preview), Figma's rendered
+  result for `gradientTransform` runs Y-flipped relative to the CSS
+  preview's top-down convention. Both `linearTransform` and
+  `radialTransform` in `code.js` are written in ordinary CSS/screen space
+  and then passed through a single `flipY()` helper before use, so the
+  compensation lives in one place instead of being repeated (and
+  potentially drifting out of sync) per transform.
 - **Grain:** Figma has no procedural noise, so `ui.html` renders a noise
   pattern to a `<canvas>`, exports it as PNG bytes, and `code.js` applies it
   as a tiled `IMAGE` fill with `OVERLAY` blend mode on top of the gradient.
@@ -78,14 +81,14 @@ Open console**.
 
 ## Known gaps
 
-- `linearTransform` is still untested against real Figma — worth double
-  checking angle direction against the CSS preview.
-- The radial gradient's Y axis needed a sign flip to match the CSS preview
-  (see "Radial positioning" above) — this was arrived at from reported
-  symptoms, not confirmed against Figma directly, so if it's still off,
-  the next report should say exactly how (still flipped / flipped the other
-  way / center in the wrong place / wrong size) so the fix can be narrowed
-  further.
+- The Y-flip fix (see "Y-axis flip" above) has been through two rounds:
+  first applied only to the radial center, which turned out to be
+  incomplete since every gradient type was actually affected; now applied
+  uniformly via `flipY()`. If a mismatch is still visible after pulling,
+  report exactly what's wrong (still flipped / flipped the *other* way now
+  / a specific type looks fine but another doesn't / wrong angle direction)
+  — that detail is what narrows down the actual fix, more so than "still
+  wrong."
 - No delete/rename for saved custom presets.
 - Only two colour stops per style (no multi-stop gradients).
 - No export to PNG/SVG.

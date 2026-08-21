@@ -24,24 +24,38 @@ function hexToRgb(hex) {
 
 // Figma gradient transforms map gradient space -> object space (unit square),
 // so they don't depend on the target node's actual size.
+//
+// Both transforms below are built in familiar CSS/screen space (Y=0 at the
+// top, growing downward, matching the panel preview). Figma's rendered
+// result comes out vertically mirrored relative to that — confirmed by
+// testing every preset/type in real Figma — so every matrix is passed
+// through flipY() once here before use, rather than each transform having
+// to remember to compensate individually.
+function flipY(m) {
+  return [
+    [m[0][0], m[0][1], m[0][2]],
+    [-m[1][0], -m[1][1], 1 - m[1][2]]
+  ];
+}
+
 function linearTransform(angleDeg) {
   // CSS angles run clockwise from "to top"; convert to the vector Figma expects.
   var a = ((angleDeg - 90) * Math.PI) / 180;
   var cos = Math.cos(a);
   var sin = Math.sin(a);
-  return [
+  return flipY([
     [cos, -sin, (1 - cos + sin) / 2],
     [sin, cos, (1 - sin - cos) / 2]
-  ];
+  ]);
 }
 
 function radialTransform(cx, cy, rx, ry) {
   // Figma places the gradient's center handle at the translation (cx, cy),
   // with the horizontal/vertical radius handles offset by (rx, 0) and (0, ry).
-  return [
+  return flipY([
     [rx, 0, cx],
     [0, ry, cy]
-  ];
+  ]);
 }
 
 function buildPaint(spec) {
@@ -56,9 +70,7 @@ function buildPaint(spec) {
     var offsetX = typeof spec.offsetX === 'number' ? spec.offsetX : 0;
     var offsetY = typeof spec.offsetY === 'number' ? spec.offsetY : 0;
     var cx = (50 + offsetX) / 100;
-    // Figma's gradientTransform Y for this paint renders inverted relative
-    // to the CSS preview's Y (0%=top), so flip it here to match.
-    var cy = 1 - (62 + offsetY) / 100;
+    var cy = (62 + offsetY) / 100;
     return {
       type: 'GRADIENT_RADIAL',
       gradientTransform: radialTransform(cx, cy, 0.7, 0.9),
