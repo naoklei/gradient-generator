@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Kumbh+Sans:wght@300;400;500&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-page:#0c0c0a; --bg-card:#131311; --bg-hover:#1c1c19;
+    --text-primary:#d6d2ca; --text-secondary:#7a7670; --text-muted:#706c67;
+    --accent:#86efac; --border:rgba(255,255,255,0.06); --border-hover:rgba(255,255,255,0.12);
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg-page); color:var(--text-primary);
+         font-family:'Kumbh Sans',sans-serif; font-size:15px; }
+  .wrap { padding:24px 16px 32px; display:flex; flex-direction:column; gap:24px; }
+  .label { font-family:'Space Grotesk',sans-serif; font-size:12px; letter-spacing:0.08em;
+           text-transform:uppercase; color:var(--text-muted); }
+  .preview { width:100%; aspect-ratio:19/9; border-radius:12px; border:1px solid var(--border);
+             box-shadow:0 4px 20px rgba(0,0,0,0.25); transition:aspect-ratio 200ms ease; }
+  .presets { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .swatch { aspect-ratio:19/9; border-radius:2px; border:1px solid var(--border); cursor:pointer;
+            transition:border-color 200ms ease, transform 300ms ease-out; position:relative; }
+  .swatch:hover { border-color:var(--border-hover); transform:translateY(-2px); }
+  .swatch[data-on="1"] { border-color:var(--accent); }
+  .row { display:flex; align-items:center; gap:12px; }
+  .row .label { flex:0 0 84px; }
+  input[type=range] { -webkit-appearance:none; appearance:none; flex:1; height:2px;
+                      background:var(--border-hover); outline:none; cursor:pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:10px; height:10px;
+                      border-radius:2px; background:var(--text-primary); transition:background 150ms ease; }
+  input[type=range]:hover::-webkit-slider-thumb { background:var(--accent); }
+  .val { font-family:'Space Grotesk',sans-serif; font-size:12px; width:34px; text-align:right;
+         font-variant-numeric:tabular-nums; color:var(--text-secondary); }
+  input[type=text], select {
+    background:var(--bg-card); border:1px solid var(--border); border-radius:2px;
+    color:var(--text-primary); font-family:'Space Grotesk',sans-serif; font-size:13px;
+    padding:7px 8px; width:100%; outline:none; }
+  input:focus, select:focus { border-color:var(--border-hover); }
+  input[type=color] { width:34px; height:30px; padding:0; border:1px solid var(--border);
+                      border-radius:2px; background:var(--bg-card); cursor:pointer; }
+  .hr { height:1px; background:var(--border); }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
+  .banner { display:flex; align-items:center; gap:8px; padding:10px 12px; border-radius:2px;
+            background:rgba(255,255,255,0.04); border:1px solid var(--border);
+            font-family:'Space Grotesk',sans-serif; font-size:12px; color:var(--text-secondary); }
+
+  .form-disabled { opacity:0.4; pointer-events:none; transition:opacity 200ms ease; }
+
+  .save-row { display:flex; justify-content:flex-end; }
+  .btn-text { font-family:'Space Grotesk',sans-serif; font-size:13px; letter-spacing:0.06em;
+              text-transform:uppercase; background:none; border:none; padding:4px 0;
+              color:var(--text-secondary); cursor:pointer;
+              transition:color 200ms ease; }
+  .btn-text:hover { color:var(--accent); }
+  .save-row[data-visible="0"] { visibility:hidden; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <div class="label" style="margin-bottom:8px">Preview</div>
+    <div class="preview" id="preview"></div>
+  </div>
+
+  <div id="banner" class="banner" style="display:none">
+    Select a layer on the canvas to apply a gradient
+  </div>
+
+  <div id="form">
+    <div style="display:flex; flex-direction:column; gap:24px">
+      <div>
+        <div class="label" style="margin-bottom:8px">Presets</div>
+        <div class="presets" id="presets"></div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div style="display:flex; flex-direction:column; gap:12px">
+        <input type="text" id="name" placeholder="Style name" />
+        <div class="cols">
+          <div class="row"><input type="color" id="c1" /><input type="text" id="c1t" /></div>
+          <div class="row"><input type="color" id="c2" /><input type="text" id="c2t" /></div>
+        </div>
+        <select id="type">
+          <option value="diagonal">Diagonal blend</option>
+          <option value="linear">Soft linear blend</option>
+          <option value="vertical">Vertical linear blend</option>
+          <option value="radial">Central radial blur</option>
+          <option value="sharp">Sharp angular gradient</option>
+        </select>
+        <div class="row"><div class="label">Angle</div>
+          <input type="range" id="angle" min="0" max="360" step="5" /><div class="val" id="angleV"></div></div>
+        <div class="row"><div class="label">Softness</div>
+          <input type="range" id="soft" min="0" max="100" step="1" /><div class="val" id="softV"></div></div>
+        <div class="row"><div class="label">Grain</div>
+          <input type="range" id="grain" min="0" max="60" step="1" /><div class="val" id="grainV"></div></div>
+        <div class="row"><div class="label">Grain scale</div>
+          <input type="range" id="gscale" min="20" max="200" step="10" /><div class="val" id="gscaleV"></div></div>
+      </div>
+
+      <div class="save-row" id="saveRow" data-visible="0">
+        <button class="btn-text" id="save">Save preset</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const BUILTIN = [
+  { name:'Vibrant Mint / Orange', color1:'#98FFD9', color2:'#FF6B00', type:'diagonal', angle:135, softness:50, grain:18 },
+  { name:'Cool Sage / Oat',       color1:'#8DAA81', color2:'#F5E8D3', type:'linear',   angle:160, softness:90, grain:18 },
+  { name:'Coral / Navy',          color1:'#1A374D', color2:'#E08E8D', type:'radial',   angle:0,   softness:85, grain:18 },
+  { name:'Rose / Plum',           color1:'#4D1A40', color2:'#B56576', type:'vertical', angle:180, softness:100, grain:18 },
+  { name:'Futuristic Purple',     color1:'#FF00FF', color2:'#1A1A4D', type:'diagonal', angle:135, softness:50, grain:18 },
+  { name:'Forest / Sky Blue',     color1:'#1A4D2E', color2:'#87CEEB', type:'sharp',    angle:115, softness:8,  grain:18 }
+];
+
+const DIRTY_KEYS = ['name', 'color1', 'color2', 'type', 'angle', 'softness', 'grain', 'grainScale'];
+
+let custom = [];
+let spec = Object.assign({}, BUILTIN[0], { grainScale:80 });
+let baseSpec = Object.assign({}, spec);
+let activeIndex = 0;
+let hasSelection = false;
+
+const $ = id => document.getElementById(id);
+
+function angleFor(s) {
+  if (s.type === 'vertical') return 180;
+  return s.angle;
+}
+
+function cssGradient(s) {
+  const a = Math.max(0, 50 - s.softness * 0.5), b = Math.min(100, 50 + s.softness * 0.5);
+  if (s.type === 'radial')
+    return `radial-gradient(ellipse 70% 90% at 50% 62%, ${s.color2} ${a}%, ${s.color1} ${b}%)`;
+  return `linear-gradient(${angleFor(s)}deg, ${s.color1} ${a}%, ${s.color2} ${b}%)`;
+}
+
+function cssNoise(s) {
+  if (!s.grain) return '';
+  const f = (s.grainScale / 100).toFixed(2);
+  return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='${f}' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='${s.grain/100}'/%3E%3C/svg%3E"), `;
+}
+
+function isDirty() {
+  return DIRTY_KEYS.some(k => spec[k] !== baseSpec[k]);
+}
+
+function renderPresets() {
+  const all = BUILTIN.concat(custom);
+  $('presets').innerHTML = '';
+  all.forEach((p, i) => {
+    const el = document.createElement('div');
+    el.className = 'swatch';
+    el.title = p.name;
+    el.style.background = cssGradient(p);
+    el.dataset.on = i === activeIndex ? '1' : '0';
+    el.onclick = () => {
+      activeIndex = i;
+      spec = Object.assign({ grainScale: spec.grainScale }, p);
+      baseSpec = Object.assign({}, spec);
+      syncInputs(); render();
+      applyToSelection();
+    };
+    $('presets').appendChild(el);
+  });
+}
+
+function render() {
+  $('preview').style.background = cssNoise(spec) + cssGradient(spec);
+  $('angleV').textContent = angleFor(spec) + '°';
+  $('softV').textContent = spec.softness;
+  $('grainV').textContent = spec.grain;
+  $('gscaleV').textContent = (spec.grainScale / 100).toFixed(1);
+  $('saveRow').dataset.visible = isDirty() ? '1' : '0';
+  renderPresets();
+}
+
+function syncInputs() {
+  $('name').value = spec.name || '';
+  $('c1').value = spec.color1; $('c1t').value = spec.color1;
+  $('c2').value = spec.color2; $('c2t').value = spec.color2;
+  $('type').value = spec.type;
+  $('angle').value = angleFor(spec);
+  $('soft').value = spec.softness;
+  $('grain').value = spec.grain;
+  $('gscale').value = spec.grainScale;
+}
+
+function bind(id, key, transform) {
+  $(id).addEventListener('input', e => {
+    spec[key] = transform ? transform(e.target.value) : e.target.value;
+    if (id === 'c1') $('c1t').value = spec.color1;
+    if (id === 'c2') $('c2t').value = spec.color2;
+    if (id === 'c1t') $('c1').value = spec.color1;
+    if (id === 'c2t') $('c2').value = spec.color2;
+    render();
+    applyToSelection();
+  });
+}
+bind('name','name'); bind('c1','color1'); bind('c1t','color1');
+bind('c2','color2'); bind('c2t','color2'); bind('type','type');
+bind('angle','angle',Number); bind('soft','softness',Number);
+bind('grain','grain',Number); bind('gscale','grainScale',Number);
+
+// Noise bitmap for the Figma image fill — generated here, sent as bytes.
+// Cached per grainScale since the amount (opacity) is applied on the Figma side.
+let noiseCache = { scale: null, bytes: null };
+function noiseBytes() {
+  return new Promise(resolve => {
+    if (!spec.grain) return resolve(null);
+    if (noiseCache.scale === spec.grainScale && noiseCache.bytes) return resolve(noiseCache.bytes);
+    const size = 512;
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = size;
+    const ctx = cv.getContext('2d');
+    const img = ctx.createImageData(size, size);
+    const step = Math.max(1, Math.round(100 / spec.grainScale));
+    for (let y = 0; y < size; y += step) {
+      for (let x = 0; x < size; x += step) {
+        const v = (Math.random() * 255) | 0;
+        for (let dy = 0; dy < step; dy++) for (let dx = 0; dx < step; dx++) {
+          const i = ((y + dy) * size + (x + dx)) * 4;
+          if (i + 3 >= img.data.length) continue;
+          img.data[i] = img.data[i+1] = img.data[i+2] = v;
+          img.data[i+3] = 255;
+        }
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    cv.toBlob(blob => blob.arrayBuffer().then(buf => {
+      const bytes = new Uint8Array(buf);
+      noiseCache = { scale: spec.grainScale, bytes };
+      resolve(bytes);
+    }), 'image/png');
+  });
+}
+
+let applyToken = 0;
+async function applyToSelection() {
+  if (!hasSelection) return;
+  const token = ++applyToken;
+  const noise = await noiseBytes();
+  if (token !== applyToken) return; // a newer change superseded this one
+  parent.postMessage({ pluginMessage: { type:'apply', spec, noise: noise ? Array.from(noise) : null } }, '*');
+}
+
+$('save').onclick = () => {
+  custom.push(Object.assign({}, spec));
+  activeIndex = BUILTIN.length + custom.length - 1;
+  baseSpec = Object.assign({}, spec);
+  parent.postMessage({ pluginMessage: { type:'save-presets', presets: custom } }, '*');
+  render();
+};
+
+function setSelection(sel) {
+  hasSelection = sel.hasSelection;
+  $('banner').style.display = hasSelection ? 'none' : 'flex';
+  $('form').className = hasSelection ? '' : 'form-disabled';
+  if (hasSelection && sel.width && sel.height) {
+    $('preview').style.aspectRatio = sel.width + ' / ' + sel.height;
+  } else {
+    $('preview').style.aspectRatio = '19 / 9';
+  }
+}
+
+onmessage = e => {
+  const m = e.data.pluginMessage;
+  if (!m) return;
+  if (m.type === 'presets') { custom = m.presets || []; render(); }
+  if (m.type === 'selection') { setSelection(m); }
+};
+
+syncInputs();
+render();
+setSelection({ hasSelection: false });
+parent.postMessage({ pluginMessage: { type:'ui-ready' } }, '*');
+</script>
+</body>
+</html>
