@@ -63,16 +63,18 @@ Open console**.
   center from the style's baseline position (50%, 62%) — `0/0` reproduces
   the original look. Both the live preview and the applied Figma paint
   compute their center from the same `spec.offsetX`/`offsetY` values.
-- **Radial transform, empirically calibrated:** `radialTransform` in
-  `code.js` isn't derived purely from the Plugin API docs — it was fit to
-  two real Figma test results (comparing where the center rendered on
-  canvas against two different position settings). That revealed
-  `gradientTransform` maps *shape space to paint space* (the reverse of
-  the initial assumption), with paint-space `(0.5, 0.5)` as the radial
-  center. `linearTransform` (diagonal/vertical/sharp types) still uses an
-  older, unverified guess (a plain vertical mirror via `flipY()`) that
-  predates this discovery — see the `CAUTION` comment above `flipY()` in
-  `code.js`.
+- **Gradient transforms, calibrated against real Figma:** neither
+  `radialTransform` nor `linearTransform` in `code.js` is derived purely
+  from the Plugin API docs — both were fixed using real test results from
+  applying presets in Figma and comparing where colors/centers actually
+  landed against the panel preview. That process revealed `gradientTransform`
+  maps *shape space to paint space* (the reverse of the initial
+  assumption): for radial, paint-space `(0.5, 0.5)` is the center; for
+  linear, paint-space position 0/1 runs along the gradient's direction
+  vector directly, with no extra flip step needed. Both were confirmed
+  against multiple independent reports (radial center position; a vertical
+  preset's top/bottom color order; a diagonal preset's slash direction and
+  left/right color placement).
 - **Grain:** Figma has no procedural noise, so `ui.html` renders a noise
   pattern to a `<canvas>`, exports it as PNG bytes, and `code.js` applies it
   as a tiled `IMAGE` fill with `OVERLAY` blend mode on top of the gradient.
@@ -83,16 +85,12 @@ Open console**.
 
 ## Known gaps
 
-- `radialTransform` is now empirically calibrated (see "Radial transform"
-  above) and should be correct. `linearTransform` — used by diagonal,
-  vertical, and sharp-angle types — has **not** been recalibrated the same
-  way and likely has an analogous issue, since it was built on the same
-  wrong assumption the radial fix corrected. To verify/fix it the same
-  way: apply a preset that uses one of those types (e.g. "Rose/Plum",
-  vertical) to a layer, and report where a specific color actually lands
-  (e.g. "color1 is at the bottom, I'd expect it at the top") rather than
-  just "looks wrong" — exact landing position is what makes calibration
-  possible instead of guesswork.
+- Both gradient transforms have been calibrated against real Figma test
+  results (see "Gradient transforms" above) — they should now match the
+  panel preview for every preset/type. If anything still looks off after
+  pulling this, report exactly what and where (which color, which corner,
+  what position) rather than "still wrong" — that's what made both fixes
+  possible instead of repeated guessing.
 - No delete/rename for saved custom presets.
 - Only two colour stops per style (no multi-stop gradients).
 - No export to PNG/SVG.

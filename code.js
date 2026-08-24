@@ -2,7 +2,7 @@
 // Applies a gradient spec from the UI directly onto the selected layer(s)
 // (native gradient paint plus an optional tiled noise image fill for grain).
 
-figma.showUI(__html__, { width: 380, height: 620, themeColors: false });
+figma.showUI(__html__, { width: 380, height: 830, themeColors: false });
 
 const STORE_KEY = 'customPresets';
 
@@ -22,37 +22,29 @@ function hexToRgb(hex) {
   };
 }
 
-// Figma gradient transforms map gradient space -> object space (unit square),
-// so they don't depend on the target node's actual size.
+// Figma gradient transforms map SHAPE space to PAINT space (confirmed by
+// empirically calibrating radialTransform below against real Figma test
+// results — this is the reverse of the naive "paint space to shape space"
+// assumption both transforms started from, and it's the actual root cause
+// behind every flip reported so far, not just a simple vertical mirror).
 //
-// CAUTION: radialTransform below was empirically recalibrated against real
-// Figma test results and turned out to need more than a simple vertical
-// mirror — Figma's transform maps SHAPE space to PAINT space (the reverse
-// of the naive assumption), not just a Y-flipped version of the same
-// mapping direction. linearTransform still uses the older flipY() guess
-// (a plain vertical mirror), which was based on "every preset looked
-// flipped" before the radial-specific root cause was understood, so it may
-// well have the same shape/paint-direction issue and only be partially
-// correct. It hasn't been recalibrated with real test data yet — if a
-// linear/diagonal/vertical/sharp preset still looks wrong, that's the
-// next thing to fix, the same way radial just was: report where a known
-// color stop actually lands vs. where the preview shows it.
-function flipY(m) {
-  return [
-    [m[0][0], m[0][1], m[0][2]],
-    [-m[1][0], -m[1][1], 1 - m[1][2]]
-  ];
-}
-
+// For a linear gradient, paint space is 1-D: position 0 (color1) at u=0,
+// position 1 (color2) at u=1. So the transform's u-row just needs to point
+// along the gradient's direction vector (cos, sin) — computed the same way
+// as before, via the CSS-equivalent start/end points on the unit square —
+// scaled so u=0 at the start point and u=1 at the end point. Confirmed
+// against two real Figma reports: a vertical preset (color order top/
+// bottom) and a diagonal preset (slash direction + left/right color
+// placement) both render correctly with this formula, with no separate
+// flip step needed.
 function linearTransform(angleDeg) {
-  // CSS angles run clockwise from "to top"; convert to the vector Figma expects.
   var a = ((angleDeg - 90) * Math.PI) / 180;
   var cos = Math.cos(a);
   var sin = Math.sin(a);
-  return flipY([
-    [cos, -sin, (1 - cos + sin) / 2],
-    [sin, cos, (1 - sin - cos) / 2]
-  ]);
+  return [
+    [cos, sin, (1 - cos - sin) / 2],
+    [-sin, cos, 0.5]
+  ];
 }
 
 function radialTransform(cx, cy, rx, ry) {

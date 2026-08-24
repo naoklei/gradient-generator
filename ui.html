@@ -103,7 +103,7 @@
           <option value="radial">Central radial blur</option>
           <option value="sharp">Sharp angular gradient</option>
         </select>
-        <div class="row"><div class="label">Angle</div>
+        <div class="row" id="angleRow"><div class="label">Angle</div>
           <input type="range" id="angle" min="0" max="360" step="5" /><div class="val" id="angleV"></div></div>
         <div id="radialControls" style="display:none; flex-direction:column; gap:12px">
           <div class="row"><div class="label">Position X</div>
@@ -194,6 +194,7 @@ function render() {
   $('softV').textContent = spec.softness;
   $('grainV').textContent = spec.grain;
   $('gscaleV').textContent = (spec.grainScale / 100).toFixed(1);
+  $('angleRow').style.display = spec.type === 'radial' ? 'none' : 'flex';
   $('radialControls').style.display = spec.type === 'radial' ? 'flex' : 'none';
   $('offsetXV').textContent = (spec.offsetX > 0 ? '+' : '') + spec.offsetX;
   $('offsetYV').textContent = (spec.offsetY > 0 ? '+' : '') + spec.offsetY;
