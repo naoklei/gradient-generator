@@ -25,12 +25,18 @@ function hexToRgb(hex) {
 // Figma gradient transforms map gradient space -> object space (unit square),
 // so they don't depend on the target node's actual size.
 //
-// Both transforms below are built in familiar CSS/screen space (Y=0 at the
-// top, growing downward, matching the panel preview). Figma's rendered
-// result comes out vertically mirrored relative to that — confirmed by
-// testing every preset/type in real Figma — so every matrix is passed
-// through flipY() once here before use, rather than each transform having
-// to remember to compensate individually.
+// CAUTION: radialTransform below was empirically recalibrated against real
+// Figma test results and turned out to need more than a simple vertical
+// mirror — Figma's transform maps SHAPE space to PAINT space (the reverse
+// of the naive assumption), not just a Y-flipped version of the same
+// mapping direction. linearTransform still uses the older flipY() guess
+// (a plain vertical mirror), which was based on "every preset looked
+// flipped" before the radial-specific root cause was understood, so it may
+// well have the same shape/paint-direction issue and only be partially
+// correct. It hasn't been recalibrated with real test data yet — if a
+// linear/diagonal/vertical/sharp preset still looks wrong, that's the
+// next thing to fix, the same way radial just was: report where a known
+// color stop actually lands vs. where the preview shows it.
 function flipY(m) {
   return [
     [m[0][0], m[0][1], m[0][2]],
@@ -50,12 +56,17 @@ function linearTransform(angleDeg) {
 }
 
 function radialTransform(cx, cy, rx, ry) {
-  // Figma places the gradient's center handle at the translation (cx, cy),
-  // with the horizontal/vertical radius handles offset by (rx, 0) and (0, ry).
-  return flipY([
-    [rx, 0, cx],
-    [0, ry, cy]
-  ]);
+  // Empirically calibrated against real Figma (two test points: default
+  // position and an offset position, each compared against where the
+  // center actually rendered on canvas). Figma's gradientTransform maps
+  // SHAPE space to PAINT space — the reverse of what earlier attempts
+  // assumed — and paint-space (0.5, 0.5) is the radial gradient's center.
+  // So placing the visual center at shape-space (cx, cy) means solving
+  // rx*cx + tx = 0.5 (and the same for y) for the translation:
+  return [
+    [rx, 0, 0.5 - rx * cx],
+    [0, ry, 0.5 - ry * cy]
+  ];
 }
 
 function buildPaint(spec) {

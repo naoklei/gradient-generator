@@ -63,14 +63,16 @@ Open console**.
   center from the style's baseline position (50%, 62%) — `0/0` reproduces
   the original look. Both the live preview and the applied Figma paint
   compute their center from the same `spec.offsetX`/`offsetY` values.
-- **Y-axis flip:** confirmed by testing (every preset/type came out
-  vertically mirrored on canvas vs. the panel preview), Figma's rendered
-  result for `gradientTransform` runs Y-flipped relative to the CSS
-  preview's top-down convention. Both `linearTransform` and
-  `radialTransform` in `code.js` are written in ordinary CSS/screen space
-  and then passed through a single `flipY()` helper before use, so the
-  compensation lives in one place instead of being repeated (and
-  potentially drifting out of sync) per transform.
+- **Radial transform, empirically calibrated:** `radialTransform` in
+  `code.js` isn't derived purely from the Plugin API docs — it was fit to
+  two real Figma test results (comparing where the center rendered on
+  canvas against two different position settings). That revealed
+  `gradientTransform` maps *shape space to paint space* (the reverse of
+  the initial assumption), with paint-space `(0.5, 0.5)` as the radial
+  center. `linearTransform` (diagonal/vertical/sharp types) still uses an
+  older, unverified guess (a plain vertical mirror via `flipY()`) that
+  predates this discovery — see the `CAUTION` comment above `flipY()` in
+  `code.js`.
 - **Grain:** Figma has no procedural noise, so `ui.html` renders a noise
   pattern to a `<canvas>`, exports it as PNG bytes, and `code.js` applies it
   as a tiled `IMAGE` fill with `OVERLAY` blend mode on top of the gradient.
@@ -81,14 +83,16 @@ Open console**.
 
 ## Known gaps
 
-- The Y-flip fix (see "Y-axis flip" above) has been through two rounds:
-  first applied only to the radial center, which turned out to be
-  incomplete since every gradient type was actually affected; now applied
-  uniformly via `flipY()`. If a mismatch is still visible after pulling,
-  report exactly what's wrong (still flipped / flipped the *other* way now
-  / a specific type looks fine but another doesn't / wrong angle direction)
-  — that detail is what narrows down the actual fix, more so than "still
-  wrong."
+- `radialTransform` is now empirically calibrated (see "Radial transform"
+  above) and should be correct. `linearTransform` — used by diagonal,
+  vertical, and sharp-angle types — has **not** been recalibrated the same
+  way and likely has an analogous issue, since it was built on the same
+  wrong assumption the radial fix corrected. To verify/fix it the same
+  way: apply a preset that uses one of those types (e.g. "Rose/Plum",
+  vertical) to a layer, and report where a specific color actually lands
+  (e.g. "color1 is at the bottom, I'd expect it at the top") rather than
+  just "looks wrong" — exact landing position is what makes calibration
+  possible instead of guesswork.
 - No delete/rename for saved custom presets.
 - Only two colour stops per style (no multi-stop gradients).
 - No export to PNG/SVG.
