@@ -2,7 +2,7 @@
 // Applies a gradient spec from the UI directly onto the selected layer(s)
 // (native gradient paint plus an optional tiled noise image fill for grain).
 
-figma.showUI(__html__, { width: 380, height: 620, themeColors: false });
+figma.showUI(__html__, { width: 380, height: 830, themeColors: false });
 
 const STORE_KEY = 'customPresets';
 
