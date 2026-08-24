@@ -2,7 +2,7 @@
 // Applies a gradient spec from the UI directly onto the selected layer(s)
 // (native gradient paint plus an optional tiled noise image fill for grain).
 
-figma.showUI(__html__, { width: 380, height: 830, themeColors: false });
+figma.showUI(__html__, { width: 380, height: 870, themeColors: false });
 
 const STORE_KEY = 'customPresets';
 
@@ -65,11 +65,14 @@ function buildPaint(spec) {
   var s = Math.max(0, Math.min(100, spec.softness));
   var a = Math.max(0, 50 - s * 0.5) / 100;
   var b = Math.min(100, 50 + s * 0.5) / 100;
-  var c1 = hexToRgb(spec.color1);
-  var c2 = hexToRgb(spec.color2);
 
   if (spec.type === 'radial') {
-    // color2 sits in the centre, color1 at the edges (central radial blur)
+    // color2 sits in the centre, color1 at the edges (central radial blur).
+    // Radial only ever uses the first two stops — no preset combines
+    // radial with more than 2 colors, so 3+ stop center-out ordering was
+    // never needed here.
+    var c1 = hexToRgb(spec.colors[0]);
+    var c2 = hexToRgb(spec.colors[1]);
     var offsetX = typeof spec.offsetX === 'number' ? spec.offsetX : 0;
     var offsetY = typeof spec.offsetY === 'number' ? spec.offsetY : 0;
     var cx = (50 + offsetX) / 100;
@@ -85,13 +88,16 @@ function buildPaint(spec) {
   }
 
   var angle = spec.type === 'vertical' ? 180 : spec.angle;
+  var n = spec.colors.length;
+  var stops = spec.colors.map(function (hex, i) {
+    var rgb = hexToRgb(hex);
+    var position = a + (b - a) * (i / (n - 1));
+    return { position: position, color: { r: rgb.r, g: rgb.g, b: rgb.b, a: 1 } };
+  });
   return {
     type: 'GRADIENT_LINEAR',
     gradientTransform: linearTransform(angle),
-    gradientStops: [
-      { position: a, color: { r: c1.r, g: c1.g, b: c1.b, a: 1 } },
-      { position: b, color: { r: c2.r, g: c2.g, b: c2.b, a: 1 } }
-    ]
+    gradientStops: stops
   };
 }
 
