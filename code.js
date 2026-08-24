@@ -24,23 +24,48 @@ function hexToRgb(hex) {
 
 // Figma gradient transforms map gradient space -> object space (unit square),
 // so they don't depend on the target node's actual size.
+//
+// CAUTION: radialTransform below was empirically recalibrated against real
+// Figma test results and turned out to need more than a simple vertical
+// mirror — Figma's transform maps SHAPE space to PAINT space (the reverse
+// of the naive assumption), not just a Y-flipped version of the same
+// mapping direction. linearTransform still uses the older flipY() guess
+// (a plain vertical mirror), which was based on "every preset looked
+// flipped" before the radial-specific root cause was understood, so it may
+// well have the same shape/paint-direction issue and only be partially
+// correct. It hasn't been recalibrated with real test data yet — if a
+// linear/diagonal/vertical/sharp preset still looks wrong, that's the
+// next thing to fix, the same way radial just was: report where a known
+// color stop actually lands vs. where the preview shows it.
+function flipY(m) {
+  return [
+    [m[0][0], m[0][1], m[0][2]],
+    [-m[1][0], -m[1][1], 1 - m[1][2]]
+  ];
+}
+
 function linearTransform(angleDeg) {
   // CSS angles run clockwise from "to top"; convert to the vector Figma expects.
   var a = ((angleDeg - 90) * Math.PI) / 180;
   var cos = Math.cos(a);
   var sin = Math.sin(a);
-  return [
+  return flipY([
     [cos, -sin, (1 - cos + sin) / 2],
     [sin, cos, (1 - sin - cos) / 2]
-  ];
+  ]);
 }
 
 function radialTransform(cx, cy, rx, ry) {
-  // Figma places the gradient's center handle at the translation (cx, cy),
-  // with the horizontal/vertical radius handles offset by (rx, 0) and (0, ry).
+  // Empirically calibrated against real Figma (two test points: default
+  // position and an offset position, each compared against where the
+  // center actually rendered on canvas). Figma's gradientTransform maps
+  // SHAPE space to PAINT space — the reverse of what earlier attempts
+  // assumed — and paint-space (0.5, 0.5) is the radial gradient's center.
+  // So placing the visual center at shape-space (cx, cy) means solving
+  // rx*cx + tx = 0.5 (and the same for y) for the translation:
   return [
-    [rx, 0, cx],
-    [0, ry, cy]
+    [rx, 0, 0.5 - rx * cx],
+    [0, ry, 0.5 - ry * cy]
   ];
 }
 
@@ -53,8 +78,10 @@ function buildPaint(spec) {
 
   if (spec.type === 'radial') {
     // color2 sits in the centre, color1 at the edges (central radial blur)
-    var cx = (typeof spec.centerX === 'number' ? spec.centerX : 50) / 100;
-    var cy = (typeof spec.centerY === 'number' ? spec.centerY : 62) / 100;
+    var offsetX = typeof spec.offsetX === 'number' ? spec.offsetX : 0;
+    var offsetY = typeof spec.offsetY === 'number' ? spec.offsetY : 0;
+    var cx = (50 + offsetX) / 100;
+    var cy = (62 + offsetY) / 100;
     return {
       type: 'GRADIENT_RADIAL',
       gradientTransform: radialTransform(cx, cy, 0.7, 0.9),

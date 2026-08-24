@@ -58,10 +58,21 @@ Open console**.
 - **Gradient math:** softness maps to how far the two colour stops sit from
   the 50% midpoint — `0` = a hard edge, `100` = a full-bleed blend. See
   `design/HANDOFF.md` for the exact formula and per-style defaults.
-- **Radial positioning:** the "Central radial blur" type exposes Center X /
-  Center Y sliders (0–100%, default 50/62 to match the original preset) that
-  move the blur's center; both the live preview and the applied Figma paint
-  read from the same `spec.centerX`/`centerY` values.
+- **Radial positioning:** the "Central radial blur" type exposes Position X /
+  Position Y sliders (-50 to +50, default 0/0) that *offset* the blur's
+  center from the style's baseline position (50%, 62%) — `0/0` reproduces
+  the original look. Both the live preview and the applied Figma paint
+  compute their center from the same `spec.offsetX`/`offsetY` values.
+- **Radial transform, empirically calibrated:** `radialTransform` in
+  `code.js` isn't derived purely from the Plugin API docs — it was fit to
+  two real Figma test results (comparing where the center rendered on
+  canvas against two different position settings). That revealed
+  `gradientTransform` maps *shape space to paint space* (the reverse of
+  the initial assumption), with paint-space `(0.5, 0.5)` as the radial
+  center. `linearTransform` (diagonal/vertical/sharp types) still uses an
+  older, unverified guess (a plain vertical mirror via `flipY()`) that
+  predates this discovery — see the `CAUTION` comment above `flipY()` in
+  `code.js`.
 - **Grain:** Figma has no procedural noise, so `ui.html` renders a noise
   pattern to a `<canvas>`, exports it as PNG bytes, and `code.js` applies it
   as a tiled `IMAGE` fill with `OVERLAY` blend mode on top of the gradient.
@@ -72,12 +83,16 @@ Open console**.
 
 ## Known gaps
 
-- `linearTransform` is still untested against real Figma — worth double
-  checking angle direction against the CSS preview. `radialTransform` had a
-  bug (the gradient's true center landed far outside the layer instead of at
-  the intended position) that's now fixed, but the corrected version hasn't
-  been confirmed on canvas yet either — verify the radial preset looks
-  centered and matches the panel preview after pulling this change.
+- `radialTransform` is now empirically calibrated (see "Radial transform"
+  above) and should be correct. `linearTransform` — used by diagonal,
+  vertical, and sharp-angle types — has **not** been recalibrated the same
+  way and likely has an analogous issue, since it was built on the same
+  wrong assumption the radial fix corrected. To verify/fix it the same
+  way: apply a preset that uses one of those types (e.g. "Rose/Plum",
+  vertical) to a layer, and report where a specific color actually lands
+  (e.g. "color1 is at the bottom, I'd expect it at the top") rather than
+  just "looks wrong" — exact landing position is what makes calibration
+  possible instead of guesswork.
 - No delete/rename for saved custom presets.
 - Only two colour stops per style (no multi-stop gradients).
 - No export to PNG/SVG.

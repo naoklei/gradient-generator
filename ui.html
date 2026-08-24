@@ -106,10 +106,10 @@
         <div class="row"><div class="label">Angle</div>
           <input type="range" id="angle" min="0" max="360" step="5" /><div class="val" id="angleV"></div></div>
         <div id="radialControls" style="display:none; flex-direction:column; gap:12px">
-          <div class="row"><div class="label">Center X</div>
-            <input type="range" id="centerX" min="0" max="100" step="1" /><div class="val" id="centerXV"></div></div>
-          <div class="row"><div class="label">Center Y</div>
-            <input type="range" id="centerY" min="0" max="100" step="1" /><div class="val" id="centerYV"></div></div>
+          <div class="row"><div class="label">Position X</div>
+            <input type="range" id="offsetX" min="-50" max="50" step="1" /><div class="val" id="offsetXV"></div></div>
+          <div class="row"><div class="label">Position Y</div>
+            <input type="range" id="offsetY" min="-50" max="50" step="1" /><div class="val" id="offsetYV"></div></div>
         </div>
         <div class="row"><div class="label">Softness</div>
           <input type="range" id="soft" min="0" max="100" step="1" /><div class="val" id="softV"></div></div>
@@ -130,16 +130,16 @@
 const BUILTIN = [
   { name:'Vibrant Mint / Orange', color1:'#98FFD9', color2:'#FF6B00', type:'diagonal', angle:135, softness:50, grain:18 },
   { name:'Cool Sage / Oat',       color1:'#8DAA81', color2:'#F5E8D3', type:'linear',   angle:160, softness:90, grain:18 },
-  { name:'Coral / Navy',          color1:'#1A374D', color2:'#E08E8D', type:'radial',   angle:0,   softness:85, grain:18, centerX:50, centerY:62 },
+  { name:'Coral / Navy',          color1:'#1A374D', color2:'#E08E8D', type:'radial',   angle:0,   softness:85, grain:18 },
   { name:'Rose / Plum',           color1:'#4D1A40', color2:'#B56576', type:'vertical', angle:180, softness:100, grain:18 },
   { name:'Futuristic Purple',     color1:'#FF00FF', color2:'#1A1A4D', type:'diagonal', angle:135, softness:50, grain:18 },
   { name:'Forest / Sky Blue',     color1:'#1A4D2E', color2:'#87CEEB', type:'sharp',    angle:115, softness:8,  grain:18 }
 ];
 
-const DIRTY_KEYS = ['name', 'color1', 'color2', 'type', 'angle', 'softness', 'grain', 'grainScale', 'centerX', 'centerY'];
+const DIRTY_KEYS = ['name', 'color1', 'color2', 'type', 'angle', 'softness', 'grain', 'grainScale', 'offsetX', 'offsetY'];
 
 let custom = [];
-let spec = Object.assign({}, BUILTIN[0], { grainScale:80, centerX:50, centerY:62 });
+let spec = Object.assign({}, BUILTIN[0], { grainScale:80, offsetX:0, offsetY:0 });
 let baseSpec = Object.assign({}, spec);
 let activeIndex = 0;
 let hasSelection = false;
@@ -154,7 +154,7 @@ function angleFor(s) {
 function cssGradient(s) {
   const a = Math.max(0, 50 - s.softness * 0.5), b = Math.min(100, 50 + s.softness * 0.5);
   if (s.type === 'radial')
-    return `radial-gradient(ellipse 70% 90% at ${s.centerX}% ${s.centerY}%, ${s.color2} ${a}%, ${s.color1} ${b}%)`;
+    return `radial-gradient(ellipse 70% 90% at ${50 + s.offsetX}% ${62 + s.offsetY}%, ${s.color2} ${a}%, ${s.color1} ${b}%)`;
   return `linear-gradient(${angleFor(s)}deg, ${s.color1} ${a}%, ${s.color2} ${b}%)`;
 }
 
@@ -179,7 +179,7 @@ function renderPresets() {
     el.dataset.on = i === activeIndex ? '1' : '0';
     el.onclick = () => {
       activeIndex = i;
-      spec = Object.assign({ grainScale: spec.grainScale, centerX: spec.centerX, centerY: spec.centerY }, p);
+      spec = Object.assign({ grainScale: spec.grainScale, offsetX: spec.offsetX, offsetY: spec.offsetY }, p);
       baseSpec = Object.assign({}, spec);
       syncInputs(); render();
       applyToSelection();
@@ -195,8 +195,8 @@ function render() {
   $('grainV').textContent = spec.grain;
   $('gscaleV').textContent = (spec.grainScale / 100).toFixed(1);
   $('radialControls').style.display = spec.type === 'radial' ? 'flex' : 'none';
-  $('centerXV').textContent = spec.centerX + '%';
-  $('centerYV').textContent = spec.centerY + '%';
+  $('offsetXV').textContent = (spec.offsetX > 0 ? '+' : '') + spec.offsetX;
+  $('offsetYV').textContent = (spec.offsetY > 0 ? '+' : '') + spec.offsetY;
   $('saveRow').dataset.visible = isDirty() ? '1' : '0';
   renderPresets();
 }
@@ -207,8 +207,8 @@ function syncInputs() {
   $('c2').value = spec.color2; $('c2t').value = spec.color2;
   $('type').value = spec.type;
   $('angle').value = angleFor(spec);
-  $('centerX').value = spec.centerX;
-  $('centerY').value = spec.centerY;
+  $('offsetX').value = spec.offsetX;
+  $('offsetY').value = spec.offsetY;
   $('soft').value = spec.softness;
   $('grain').value = spec.grain;
   $('gscale').value = spec.grainScale;
@@ -231,7 +231,7 @@ bind('name','name'); bind('c1','color1'); bind('c1t','color1');
 bind('c2','color2'); bind('c2t','color2'); bind('type','type');
 bind('angle','angle',Number); bind('soft','softness',Number);
 bind('grain','grain',Number); bind('gscale','grainScale',Number);
-bind('centerX','centerX',Number); bind('centerY','centerY',Number);
+bind('offsetX','offsetX',Number); bind('offsetY','offsetY',Number);
 
 // Noise bitmap for the Figma image fill — generated here, sent as bytes.
 // Cached per grainScale since the amount (opacity) is applied on the Figma side.
