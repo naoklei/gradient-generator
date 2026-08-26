@@ -120,20 +120,28 @@ Open console**.
   `MONOTONE` variant is used (grayscale grain via a single fixed mid-gray
   colour); the API also supports `DUOTONE`/`MULTITONE` but those aren't
   exposed in this UI. `Grain` (0-100) sets the effect's opacity (`color.a`);
-  `Density` (0-100%) maps directly to the effect's `density`; `Noise size`
-  is a 2-column X/Y number input (0-5, decimal, matching the API's
-  `noiseSize`/`noiseSizeVector` — Figma requires `noiseSizeVector.x` to
-  equal `noiseSize`, so `code.js` always sets both from the X value). Blend
-  mode is fixed at `OVERLAY` so the grain lightens/darkens symmetrically
-  regardless of the gradient's own lightness underneath, mirroring the old
-  bitmap approach's grayscale+overlay look. The colour/blend-mode choice is
-  a first pass based on the documented API shape, not yet confirmed against
-  a live render — flag if the grain looks off (too strong/weak, wrong
-  contrast direction) so it can be recalibrated. The panel's live preview
-  still approximates grain with an SVG `feTurbulence` filter (`cssNoise` in
-  `ui.html`), since a browser can't render Figma's native effect — treat the
-  preview's grain as a rough stand-in, not a pixel match, for the applied
-  result.
+  `Density` (0-100%) maps directly to the effect's `density`. `noiseSize`
+  is a required field on the effect but isn't exposed as a control — it
+  didn't produce a visually distinct result from grain/density in testing,
+  so `code.js` fixes it at `1`/`{x:1,y:1}` (Figma requires
+  `noiseSizeVector.x === noiseSize`). Blend mode is fixed at `OVERLAY` so
+  the grain lightens/darkens symmetrically regardless of the gradient's own
+  lightness underneath, mirroring the old bitmap approach's grayscale+overlay
+  look. The colour/blend-mode choice is a first pass based on the documented
+  API shape, not yet confirmed against a live render — flag if the grain
+  looks off (too strong/weak, wrong contrast direction) so it can be
+  recalibrated. If the effect fails to apply at all (an exception from a
+  beta API rejecting a value), `code.js` now logs the real error to the
+  plugin console and shows a `figma.notify` rather than silently doing
+  nothing — check **Plugins → Development → Open console** and report the
+  exact error if grain still doesn't show up on the canvas. The panel's live
+  preview still approximates grain with an SVG `feTurbulence` filter
+  (`cssNoise` in `ui.html`), since a browser can't render Figma's native
+  effect: `Grain` maps to the filter's opacity and `Density` maps to its
+  `baseFrequency` (more/finer flecks at higher density) — the two are
+  deliberately independent, unlike an earlier version where `Density` also
+  scaled opacity and read as a second opacity slider. Still, this preview is
+  a rough stand-in, not a pixel match, for the applied result.
 - **Presets:** six built-in styles are hard-coded in `ui.html`; anything
   you save is appended to a `custom` array persisted in
   `figma.clientStorage` (per user/machine, not synced anywhere). The

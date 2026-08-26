@@ -105,22 +105,24 @@ function buildPaint(spec) {
 // color is fixed mid-gray so OVERLAY blending can lighten/darken
 // symmetrically regardless of the underlying gradient's own lightness —
 // same reasoning the old baked-bitmap grain used grayscale + OVERLAY for.
+// noiseSize isn't exposed in the UI (removed — it wasn't producing a
+// visually distinct result from grain/density), so it's fixed at a single
+// reasonable default here; the API still requires it and requires
+// noiseSizeVector.x === noiseSize.
 // This is a first pass verified against the documented API shape, not
 // against a live render yet (color/blendMode choice in particular may
 // need adjusting once seen on canvas).
 function buildEffects(spec) {
   if (!spec.grain) return [];
   var density = typeof spec.grainDensity === 'number' ? spec.grainDensity : 50;
-  var sizeX = typeof spec.noiseSizeX === 'number' ? spec.noiseSizeX : 1;
-  var sizeY = typeof spec.noiseSizeY === 'number' ? spec.noiseSizeY : 1;
   return [{
     type: 'NOISE',
     noiseType: 'MONOTONE',
     visible: true,
     blendMode: 'OVERLAY',
     color: { r: 0.5, g: 0.5, b: 0.5, a: spec.grain / 100 },
-    noiseSize: sizeX,
-    noiseSizeVector: { x: sizeX, y: sizeY },
+    noiseSize: 1,
+    noiseSizeVector: { x: 1, y: 1 },
     density: density / 100
   }];
 }
@@ -176,12 +178,27 @@ figma.ui.onmessage = async function (msg) {
   var fills = [buildPaint(spec)];
   var effects = buildEffects(spec);
 
+  var effectsFailed = false;
   nodes.forEach(function (n) {
     try {
       n.fills = fills;
+    } catch (e) {
+      // node doesn't accept this fill (e.g. locked) — skip it
+      console.error('Gradient fill failed on "' + n.name + '":', e);
+    }
+    try {
       n.effects = effects;
     } catch (e) {
-      // node doesn't accept this fill/effect set (e.g. locked) — skip it
+      // Separate from the fills try/catch: NOISE is a beta API and can
+      // reject a value the docs don't obviously rule out, and silently
+      // lumping this failure in with fills previously meant the grain
+      // could fail on every apply with no visible sign why. Log the real
+      // error and surface a one-time notification instead.
+      effectsFailed = true;
+      console.error('Noise effect failed on "' + n.name + '":', e);
     }
   });
+  if (effectsFailed) {
+    figma.notify('Grain effect failed to apply — see plugin console (Plugins → Development → Open console)');
+  }
 };

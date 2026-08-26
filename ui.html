@@ -121,15 +121,6 @@
           <input type="range" id="grain" min="0" max="100" step="1" /><div class="val" id="grainV"></div></div>
         <div class="row"><div class="label">Density</div>
           <input type="range" id="gdensity" min="0" max="100" step="1" /><div class="val" id="gdensityV"></div></div>
-        <div>
-          <div class="label" style="margin-bottom:4px">Noise size</div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px">
-            <div class="row"><div class="label" style="flex:0 0 20px">X</div>
-              <input type="number" id="noiseSizeX" min="0" max="5" step="0.1" /></div>
-            <div class="row"><div class="label" style="flex:0 0 20px">Y</div>
-              <input type="number" id="noiseSizeY" min="0" max="5" step="0.1" /></div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -150,7 +141,7 @@ const BUILTIN = [
 // with the current spec. DIRTY_KEYS adds 'name' on top, for "Save preset"
 // (renaming and saving as new is meaningful even though it doesn't change
 // what's rendered).
-const RENDER_KEYS = ['type', 'angle', 'softness', 'grain', 'grainDensity', 'noiseSizeX', 'noiseSizeY', 'offsetX', 'offsetY'];
+const RENDER_KEYS = ['type', 'angle', 'softness', 'grain', 'grainDensity', 'offsetX', 'offsetY'];
 const DIRTY_KEYS = ['name'].concat(RENDER_KEYS);
 
 // Every spec/preset snapshot needs its own colors array — spec.colors is
@@ -169,7 +160,7 @@ function specsEqual(a, b, keys) {
 }
 
 let custom = [];
-let spec = cloneSpec(Object.assign({}, BUILTIN[0], { grainDensity:50, noiseSizeX:1, noiseSizeY:1, offsetX:0, offsetY:0 }));
+let spec = cloneSpec(Object.assign({}, BUILTIN[0], { grainDensity:50, offsetX:0, offsetY:0 }));
 let baseSpec = cloneSpec(spec);
 let appliedSpec = cloneSpec(spec);
 let activeIndex = 0;
@@ -194,19 +185,19 @@ function cssGradient(s) {
   return `linear-gradient(${angleFor(s)}deg, ${stops})`;
 }
 
-// Approximation only — the real grain now comes from Figma's native NOISE
+// Approximation only — the real grain comes from Figma's native NOISE
 // effect (see code.js buildEffects), which this CSS filter can't replicate
-// exactly. Bigger noiseSize -> coarser grain -> lower feTurbulence
-// baseFrequency; density nudges the visible opacity as a rough stand-in for
-// how much of the tile the native effect's dot pattern actually covers.
+// exactly. Grain is pure opacity, matching the effect's color.a. Density
+// drives the turbulence's baseFrequency as a stand-in for "how many
+// separate flecks are visible per area" (low density -> fewer, larger-
+// looking flecks; high density -> finer, denser texture) — it deliberately
+// does NOT also scale opacity, so it doesn't just look like a second
+// opacity slider.
 function cssNoise(s) {
   if (!s.grain) return '';
-  const sizeX = typeof s.noiseSizeX === 'number' ? s.noiseSizeX : 1;
-  const sizeY = typeof s.noiseSizeY === 'number' ? s.noiseSizeY : 1;
-  const avgSize = Math.max(0.01, (sizeX + sizeY) / 2);
-  const f = Math.max(0.02, Math.min(0.9, 1 / (avgSize * 4))).toFixed(2);
   const density = typeof s.grainDensity === 'number' ? s.grainDensity : 50;
-  const opacity = ((s.grain / 100) * (0.4 + 0.6 * density / 100)).toFixed(2);
+  const f = (0.02 + (density / 100) * 0.5).toFixed(2);
+  const opacity = (s.grain / 100).toFixed(2);
   return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='${f}' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='${opacity}'/%3E%3C/svg%3E"), `;
 }
 
@@ -229,7 +220,7 @@ function renderPresets() {
     el.dataset.on = i === activeIndex ? '1' : '0';
     el.onclick = () => {
       activeIndex = i;
-      spec = cloneSpec(Object.assign({ grainDensity: spec.grainDensity, noiseSizeX: spec.noiseSizeX, noiseSizeY: spec.noiseSizeY, offsetX: spec.offsetX, offsetY: spec.offsetY }, p));
+      spec = cloneSpec(Object.assign({ grainDensity: spec.grainDensity, offsetX: spec.offsetX, offsetY: spec.offsetY }, p));
       baseSpec = cloneSpec(spec);
       syncInputs(); render();
       applyToSelection();
@@ -260,8 +251,6 @@ function syncInputs() {
   $('soft').value = spec.softness;
   $('grain').value = spec.grain;
   $('gdensity').value = spec.grainDensity;
-  $('noiseSizeX').value = spec.noiseSizeX;
-  $('noiseSizeY').value = spec.noiseSizeY;
   renderColorRows();
 }
 
@@ -318,7 +307,6 @@ function bind(id, key, transform, autoApply) {
 bind('name','name',null,false); bind('type','type');
 bind('angle','angle',Number); bind('soft','softness',Number);
 bind('grain','grain',Number); bind('gdensity','grainDensity',Number);
-bind('noiseSizeX','noiseSizeX',Number); bind('noiseSizeY','noiseSizeY',Number);
 bind('offsetX','offsetX',Number); bind('offsetY','offsetY',Number);
 
 // Flip buttons mirror the gradient's angle across the vertical/horizontal
@@ -387,9 +375,9 @@ $('randomize').onclick = () => {
 };
 
 // Grain is now Figma's native NOISE layer effect (built from spec.grain/
-// grainDensity/noiseSizeX/noiseSizeY in code.js's buildEffects) rather than
-// a baked bitmap fill, so applying is just a spec handoff — no async byte
-// generation step needed.
+// grainDensity in code.js's buildEffects) rather than a baked bitmap fill,
+// so applying is just a spec handoff — no async byte generation step
+// needed.
 function applyToSelection() {
   if (!hasSelection) return;
   parent.postMessage({ pluginMessage: { type:'apply', spec } }, '*');
