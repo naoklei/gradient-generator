@@ -1,6 +1,6 @@
 // Gradient Backgrounds — Figma plugin
 // Applies a gradient spec from the UI directly onto the selected layer(s)
-// (native gradient paint plus an optional tiled noise image fill for grain).
+// (native gradient paint plus an optional native NOISE effect for grain).
 
 figma.showUI(__html__, { width: 380, height: 800, themeColors: false });
 
@@ -101,6 +101,30 @@ function buildPaint(spec) {
   };
 }
 
+// Native NoiseEffect (Effects panel "Noise"), monotone only for now.
+// color is fixed mid-gray so OVERLAY blending can lighten/darken
+// symmetrically regardless of the underlying gradient's own lightness —
+// same reasoning the old baked-bitmap grain used grayscale + OVERLAY for.
+// This is a first pass verified against the documented API shape, not
+// against a live render yet (color/blendMode choice in particular may
+// need adjusting once seen on canvas).
+function buildEffects(spec) {
+  if (!spec.grain) return [];
+  var density = typeof spec.grainDensity === 'number' ? spec.grainDensity : 50;
+  var sizeX = typeof spec.noiseSizeX === 'number' ? spec.noiseSizeX : 1;
+  var sizeY = typeof spec.noiseSizeY === 'number' ? spec.noiseSizeY : 1;
+  return [{
+    type: 'NOISE',
+    noiseType: 'MONOTONE',
+    visible: true,
+    blendMode: 'OVERLAY',
+    color: { r: 0.5, g: 0.5, b: 0.5, a: spec.grain / 100 },
+    noiseSize: sizeX,
+    noiseSizeVector: { x: sizeX, y: sizeY },
+    density: density / 100
+  }];
+}
+
 function getFillableNodes() {
   return figma.currentPage.selection.filter(function (n) {
     return 'fills' in n;
@@ -150,24 +174,14 @@ figma.ui.onmessage = async function (msg) {
 
   var spec = msg.spec;
   var fills = [buildPaint(spec)];
-
-  if (spec.grain > 0 && msg.noise) {
-    var image = figma.createImage(new Uint8Array(msg.noise));
-    fills.push({
-      type: 'IMAGE',
-      imageHash: image.hash,
-      scaleMode: 'TILE',
-      scalingFactor: 0.5,
-      opacity: spec.grain / 100,
-      blendMode: 'OVERLAY'
-    });
-  }
+  var effects = buildEffects(spec);
 
   nodes.forEach(function (n) {
     try {
       n.fills = fills;
+      n.effects = effects;
     } catch (e) {
-      // node doesn't accept this fill set (e.g. locked) — skip it
+      // node doesn't accept this fill/effect set (e.g. locked) — skip it
     }
   });
 };

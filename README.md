@@ -2,9 +2,9 @@
 
 A Figma plugin that applies a gradient fill to the currently selected layer(s)
 from six presets (or fully custom colours/type/softness/grain), using native
-Figma gradient paints plus an optional baked-noise grain layer. Select a
-layer, pick a preset or dial in your own settings, then hit Apply — the fill
-inherits the selected layer's size, no separate "create" step.
+Figma gradient paints plus an optional native NOISE layer effect for grain.
+Select a layer, pick a preset or dial in your own settings, then hit Apply —
+the fill inherits the selected layer's size, no separate "create" step.
 
 ## Run it in Figma (development)
 
@@ -27,7 +27,7 @@ Open console**.
 - `manifest.json` — plugin manifest (id, entry points, permissions)
 - `code.js` — the plugin's sandboxed main thread: tracks selection, builds
   native `GRADIENT_LINEAR` / `GRADIENT_RADIAL` paints, and applies them (plus
-  an optional tiled noise image fill) to the selected node(s)
+  an optional native `NOISE` layer effect) to the selected node(s)
 - `ui.html` — the plugin panel UI (preview, presets, controls); runs in an
   iframe and talks to `code.js` via `postMessage`
 - `design/` — original design reference from Claude Design (not built code):
@@ -115,9 +115,25 @@ Open console**.
   against multiple independent reports (radial center position; a vertical
   preset's top/bottom color order; a diagonal preset's slash direction and
   left/right color placement).
-- **Grain:** Figma has no procedural noise, so `ui.html` renders a noise
-  pattern to a `<canvas>`, exports it as PNG bytes, and `code.js` applies it
-  as a tiled `IMAGE` fill with `OVERLAY` blend mode on top of the gradient.
+- **Grain:** uses Figma's native `NOISE` layer effect (Plugin API, currently
+  **beta** — the shape may change) rather than a baked bitmap fill. Only the
+  `MONOTONE` variant is used (grayscale grain via a single fixed mid-gray
+  colour); the API also supports `DUOTONE`/`MULTITONE` but those aren't
+  exposed in this UI. `Grain` (0-100) sets the effect's opacity (`color.a`);
+  `Density` (0-100%) maps directly to the effect's `density`; `Noise size`
+  is a 2-column X/Y number input (0-5, decimal, matching the API's
+  `noiseSize`/`noiseSizeVector` — Figma requires `noiseSizeVector.x` to
+  equal `noiseSize`, so `code.js` always sets both from the X value). Blend
+  mode is fixed at `OVERLAY` so the grain lightens/darkens symmetrically
+  regardless of the gradient's own lightness underneath, mirroring the old
+  bitmap approach's grayscale+overlay look. The colour/blend-mode choice is
+  a first pass based on the documented API shape, not yet confirmed against
+  a live render — flag if the grain looks off (too strong/weak, wrong
+  contrast direction) so it can be recalibrated. The panel's live preview
+  still approximates grain with an SVG `feTurbulence` filter (`cssNoise` in
+  `ui.html`), since a browser can't render Figma's native effect — treat the
+  preview's grain as a rough stand-in, not a pixel match, for the applied
+  result.
 - **Presets:** six built-in styles are hard-coded in `ui.html`; anything
   you save is appended to a `custom` array persisted in
   `figma.clientStorage` (per user/machine, not synced anywhere). The
@@ -141,7 +157,10 @@ Open console**.
 - Stop count (2 or 3) is fixed per preset by whoever authors it — there's
   no UI for users to add/remove a stop on an arbitrary style.
 - No export to PNG/SVG.
-- Applying to a multi-selection with mixed sizes reuses the same paint object
-  for every node — fine since the transform is unit-space, but grain image
-  fills are tiled at a fixed scale so very differently sized layers may look
-  inconsistent.
+- Applying to a multi-selection with mixed sizes reuses the same paint/effect
+  objects for every node — fine since the gradient transform is unit-space
+  and the native noise effect isn't geometry-relative either.
+- The native `NOISE` effect is a **beta** Plugin API — its shape could
+  change in a future Figma release. Only `MONOTONE` is implemented; the
+  grain colour/blend-mode/default size/density values are a first pass, not
+  yet verified against a live canvas render (see "Grain" above).
