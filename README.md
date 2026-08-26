@@ -91,10 +91,18 @@ Open console**.
   settled `change` to reach the canvas, so an unreviewed random combo never
   silently overwrites the selected layer.
 - **Radial positioning:** the "Central radial blur" type exposes Position X /
-  Position Y sliders (-50 to +50, default 0/0) that *offset* the blur's
-  center from the style's baseline position (50%, 62%) — `0/0` reproduces
-  the original look. Both the live preview and the applied Figma paint
-  compute their center from the same `spec.offsetX`/`offsetY` values.
+  Position Y number fields (laid out as a 2-column grid, -50 to +50, default
+  0/0) that *offset* the blur's center from the style's baseline position
+  (50%, 62%) — `0/0` reproduces the original look. Both the live preview and
+  the applied Figma paint compute their center from the same
+  `spec.offsetX`/`offsetY` values.
+- **Angle field + flip buttons:** Angle is a direct-entry number field (not
+  a slider) with two buttons next to it — ⇋ mirrors the gradient
+  left↔right (`angle → 360 - angle`), ⇅ mirrors it top↔bottom
+  (`angle → 180 - angle`), both using the CSS angle convention this app
+  already follows (`0deg` = "to top", clockwise). Both are one-shot,
+  predictable actions, so — unlike Randomize — they auto-apply immediately
+  rather than waiting for Apply or a settled edit.
 - **Gradient transforms, calibrated against real Figma:** neither
   `radialTransform` nor `linearTransform` in `code.js` is derived purely
   from the Plugin API docs — both were fixed using real test results from

@@ -33,7 +33,7 @@
   input[type=range]:hover::-webkit-slider-thumb { background:var(--accent); }
   .val { font-family:'Space Grotesk',sans-serif; font-size:12px; width:34px; text-align:right;
          font-variant-numeric:tabular-nums; color:var(--text-secondary); }
-  input[type=text], select {
+  input[type=text], input[type=number], select {
     background:var(--bg-card); border:1px solid var(--border); border-radius:2px;
     color:var(--text-primary); font-family:'Space Grotesk',sans-serif; font-size:13px;
     padding:7px 8px; width:100%; outline:none; }
@@ -59,6 +59,7 @@
   .btn-primary:disabled { opacity:0.35; cursor:default; }
   .btn-danger:hover:not(:disabled) { border-color:#ef4444; color:#ef4444;
                  background:rgba(239,68,68,0.07); }
+  .btn-icon { padding:6px 10px; flex:0 0 auto; }
 </style>
 </head>
 <body>
@@ -104,12 +105,15 @@
           <option value="sharp">Sharp angular gradient</option>
         </select>
         <div class="row" id="angleRow"><div class="label">Angle</div>
-          <input type="range" id="angle" min="0" max="360" step="5" /><div class="val" id="angleV"></div></div>
-        <div id="radialControls" style="display:none; flex-direction:column; gap:12px">
-          <div class="row"><div class="label">Position X</div>
-            <input type="range" id="offsetX" min="-50" max="50" step="1" /><div class="val" id="offsetXV"></div></div>
-          <div class="row"><div class="label">Position Y</div>
-            <input type="range" id="offsetY" min="-50" max="50" step="1" /><div class="val" id="offsetYV"></div></div>
+          <input type="number" id="angle" min="0" max="360" step="5" />
+          <button type="button" id="flipH" class="btn-primary btn-icon" title="Flip horizontal">⇋</button>
+          <button type="button" id="flipV" class="btn-primary btn-icon" title="Flip vertical">⇅</button>
+        </div>
+        <div id="radialControls" style="display:none; grid-template-columns:1fr 1fr; gap:8px">
+          <div class="row"><div class="label" style="flex:0 0 20px">X</div>
+            <input type="number" id="offsetX" min="-50" max="50" step="1" /></div>
+          <div class="row"><div class="label" style="flex:0 0 20px">Y</div>
+            <input type="number" id="offsetY" min="-50" max="50" step="1" /></div>
         </div>
         <div class="row"><div class="label">Softness</div>
           <input type="range" id="soft" min="0" max="100" step="1" /><div class="val" id="softV"></div></div>
@@ -217,14 +221,11 @@ function renderPresets() {
 
 function render() {
   $('preview').style.background = cssNoise(spec) + cssGradient(spec);
-  $('angleV').textContent = angleFor(spec) + '°';
   $('softV').textContent = spec.softness;
   $('grainV').textContent = spec.grain;
   $('gscaleV').textContent = (spec.grainScale / 100).toFixed(1);
   $('angleRow').style.display = spec.type === 'radial' ? 'none' : 'flex';
-  $('radialControls').style.display = spec.type === 'radial' ? 'flex' : 'none';
-  $('offsetXV').textContent = (spec.offsetX > 0 ? '+' : '') + spec.offsetX;
-  $('offsetYV').textContent = (spec.offsetY > 0 ? '+' : '') + spec.offsetY;
+  $('radialControls').style.display = spec.type === 'radial' ? 'grid' : 'none';
   $('apply').style.display = isUnapplied() ? '' : 'none';
   $('deletePreset').style.display = activeIndex >= BUILTIN.length ? '' : 'none';
   $('save').style.display = isDirty() ? '' : 'none';
@@ -297,6 +298,25 @@ bind('name','name',null,false); bind('type','type');
 bind('angle','angle',Number); bind('soft','softness',Number);
 bind('grain','grain',Number); bind('gscale','grainScale',Number);
 bind('offsetX','offsetX',Number); bind('offsetY','offsetY',Number);
+
+// Flip buttons mirror the gradient's angle across the vertical/horizontal
+// axis (CSS angle convention: 0deg = "to top", clockwise). Horizontal flip
+// mirrors left<->right: angle -> 360-angle. Vertical flip mirrors
+// top<->bottom: angle -> 180-angle. Both are deliberate, single-purpose
+// clicks with a predictable result (unlike Randomize), so they auto-apply
+// immediately rather than waiting for a settled change.
+$('flipH').onclick = () => {
+  spec.angle = (360 - angleFor(spec)) % 360;
+  $('angle').value = angleFor(spec);
+  render();
+  applyToSelection();
+};
+$('flipV').onclick = () => {
+  spec.angle = ((180 - angleFor(spec)) % 360 + 360) % 360;
+  $('angle').value = angleFor(spec);
+  render();
+  applyToSelection();
+};
 
 // Color-theory-based randomizer: picks a recognized hue-harmony scheme
 // (complementary/analogous for 2 stops; triadic/split-complementary/
