@@ -42,22 +42,54 @@ Open console**.
   and tells the UI whether anything fillable (`'fills' in node`) is selected.
   With nothing selected, the panel shows a prompt and the preset/controls
   section is disabled — there's nothing to apply to yet.
-- **Preset click = instant apply; everything else needs Apply:** clicking a
-  preset swatch immediately re-applies that gradient to the selected
-  layer(s) — it's a single discrete action, not something you drag. Slider
-  and colour edits (angle, softness, grain, radial position, etc.) only
-  update the live panel preview as you adjust them; nothing is written to
-  the canvas until you click the **Apply** button (top-right, above the
-  preview). This split exists because writing to the Figma document on
-  every slider tick made dragging visibly laggy — decoupling edit-from-apply
-  keeps the panel responsive regardless of how expensive the eventual write
-  is. Size is never set by the plugin; the fill just paints onto whatever
-  geometry is selected, so it inherits that layer's width/height
-  automatically (Figma's gradient transforms are defined in unit space, not
-  pixels).
-- **Gradient math:** softness maps to how far the two colour stops sit from
-  the 50% midpoint — `0` = a hard edge, `100` = a full-bleed blend. See
-  `design/HANDOFF.md` for the exact formula and per-style defaults.
+- **Preset click = instant apply; everything else auto-applies once you
+  settle:** clicking a preset swatch immediately re-applies that gradient
+  to the selected layer(s) — it's a single discrete action, not something
+  you drag. Slider and colour edits update the live panel preview
+  continuously on `input` (no canvas write — that's what caused visible lag
+  while dragging), then auto-apply once the edit settles, via the native
+  `change` event (mouse-up on a slider, blur/Enter on a text field, closing
+  the native colour picker) — no arbitrary debounce delay to tune, just the
+  browser's own "this interaction just ended" signal. Renaming the style
+  (the "Style name" field) is excluded from auto-apply since the name isn't
+  part of the rendered gradient at all. Size is never set by the plugin;
+  the fill just paints onto whatever geometry is selected, so it inherits
+  that layer's width/height automatically (Figma's gradient transforms are
+  defined in unit space, not pixels).
+- **Apply button (next to Randomize, above the preview) only appears when
+  there's something unapplied** — `appliedSpec` tracks what was last
+  actually pushed to canvas, compared against the live `spec` (via
+  `isUnapplied()`); with auto-apply already handling settled slider/colour
+  edits, Apply mostly only shows up right after clicking **Randomize**
+  (which deliberately doesn't auto-apply — see below), or briefly mid-drag
+  before `change` fires. Trade-off: `appliedSpec` isn't reset on selection
+  change, so it no longer offers a standing way to push the *current*,
+  unchanged settings onto a newly-selected different layer — nudge a
+  slider or reselect the preset if you need that.
+- **Gradient math:** softness maps to how far the outer colour stops sit
+  from the 50% midpoint — `0` = a hard edge, `100` = a full-bleed blend.
+  Each style has a `colors: string[]` array (2 or 3 stops); stop `i` of
+  `n` sits at `a + (b-a)*i/(n-1)` where `a`/`b` are the softness-derived
+  outer positions — for 2 stops that's exactly `[a, b]`, for 3 it's
+  `[a, 50, b]` (the middle stop stays anchored at the midpoint, only the
+  outer two move with softness). See `design/HANDOFF.md` for the original
+  2-stop formula this generalizes. Only `Rose / Plum` and `Futuristic
+  Purple` currently use 3 stops; the radial type only ever reads
+  `colors[0]`/`colors[1]` (no preset combines radial with 3+ stops, so
+  center-out stop ordering for 3+ was never needed).
+- **Randomize** (next to Apply, above the preview) regenerates the current
+  style's colours (keeping whatever stop count — 2 or 3 — is currently
+  loaded) using actual colour theory rather than uniform-random RGB: a
+  random base hue anchors a randomly chosen harmony scheme (complementary
+  or analogous for 2 stops; triadic, split-complementary, or analogous for
+  3), saturation is constrained to a moderate 45-68% range (avoids both
+  neon-max and muddy/desaturated results), and each stop draws lightness
+  from a fixed, well-separated band by index (contrast guaranteed by
+  construction, not by validating and retrying). It only updates the
+  preview/colour swatches — like any other edit, it needs Apply (which
+  appears once you randomize, since the result is now unapplied) or a
+  settled `change` to reach the canvas, so an unreviewed random combo never
+  silently overwrites the selected layer.
 - **Radial positioning:** the "Central radial blur" type exposes Position X /
   Position Y sliders (-50 to +50, default 0/0) that *offset* the blur's
   center from the style's baseline position (50%, 62%) — `0/0` reproduces
@@ -78,10 +110,16 @@ Open console**.
 - **Grain:** Figma has no procedural noise, so `ui.html` renders a noise
   pattern to a `<canvas>`, exports it as PNG bytes, and `code.js` applies it
   as a tiled `IMAGE` fill with `OVERLAY` blend mode on top of the gradient.
-- **Presets:** six built-in styles are hard-coded in `ui.html`. The "Save
-  preset" text link only appears once you've changed something from the
-  loaded preset (or from the last save); clicking it appends the current spec
-  to `figma.clientStorage` (persisted per user/machine, not synced anywhere).
+- **Presets:** six built-in styles are hard-coded in `ui.html`; anything
+  you save is appended to a `custom` array persisted in
+  `figma.clientStorage` (per user/machine, not synced anywhere). The
+  Presets header shows **Delete** whenever the currently active preset is
+  one of your saved custom ones (there's nothing to delete for a built-in
+  — it isn't stored anywhere), and **Save preset** whenever the live spec
+  has diverged from whatever preset was loaded (`isDirty()`) — the two can
+  show together, e.g. after tweaking a custom preset you haven't saved
+  over. Deleting doesn't touch the live preview/spec, just removes that
+  entry from the grid and storage.
 
 ## Known gaps
 
@@ -91,8 +129,9 @@ Open console**.
   pulling this, report exactly what and where (which color, which corner,
   what position) rather than "still wrong" — that's what made both fixes
   possible instead of repeated guessing.
-- No delete/rename for saved custom presets.
-- Only two colour stops per style (no multi-stop gradients).
+- No rename for saved custom presets (delete exists; rename doesn't).
+- Stop count (2 or 3) is fixed per preset by whoever authors it — there's
+  no UI for users to add/remove a stop on an arbitrary style.
 - No export to PNG/SVG.
 - Applying to a multi-selection with mixed sizes reuses the same paint object
   for every node — fine since the transform is unit-space, but grain image

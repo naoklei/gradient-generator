@@ -19,7 +19,7 @@
            text-transform:uppercase; color:var(--text-muted); }
   .preview { width:100%; aspect-ratio:19/9; border-radius:12px; border:1px solid var(--border);
              box-shadow:0 4px 20px rgba(0,0,0,0.25); transition:aspect-ratio 200ms ease; }
-  .presets { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .presets { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
   .swatch { aspect-ratio:19/9; border-radius:2px; border:1px solid var(--border); cursor:pointer;
             transition:border-color 200ms ease, transform 300ms ease-out; position:relative; }
   .swatch:hover { border-color:var(--border-hover); transform:translateY(-2px); }
@@ -38,10 +38,10 @@
     color:var(--text-primary); font-family:'Space Grotesk',sans-serif; font-size:13px;
     padding:7px 8px; width:100%; outline:none; }
   input:focus, select:focus { border-color:var(--border-hover); }
+  select:hover { border-color:var(--border-hover); background:var(--bg-hover); }
   input[type=color] { width:34px; height:30px; padding:0; border:1px solid var(--border);
                       border-radius:2px; background:var(--bg-card); cursor:pointer; }
   .hr { height:1px; background:var(--border); }
-  .cols { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 
   .banner { display:flex; align-items:center; gap:8px; padding:10px 12px; border-radius:2px;
             background:rgba(255,255,255,0.04); border:1px solid var(--border);
@@ -49,7 +49,7 @@
 
   .form-disabled { opacity:0.4; pointer-events:none; transition:opacity 200ms ease; }
 
-  .header-row { display:flex; align-items:center; justify-content:space-between; }
+  .header-row { display:flex; align-items:center; justify-content:space-between; min-height:28px; }
   .btn-primary { font-family:'Space Grotesk',sans-serif; font-size:12px; letter-spacing:0.06em;
               text-transform:uppercase; padding:6px 12px; border-radius:2px; cursor:pointer;
               background:transparent; border:1px solid var(--border-hover); color:var(--text-primary);
@@ -57,14 +57,8 @@
   .btn-primary:hover:not(:disabled) { border-color:var(--accent); color:var(--accent);
                  background:rgba(134,239,172,0.07); }
   .btn-primary:disabled { opacity:0.35; cursor:default; }
-
-  .save-row { display:flex; justify-content:flex-end; }
-  .btn-text { font-family:'Space Grotesk',sans-serif; font-size:13px; letter-spacing:0.06em;
-              text-transform:uppercase; background:none; border:none; padding:4px 0;
-              color:var(--text-secondary); cursor:pointer;
-              transition:color 200ms ease; }
-  .btn-text:hover { color:var(--accent); }
-  .save-row[data-visible="0"] { visibility:hidden; }
+  .btn-danger:hover:not(:disabled) { border-color:#ef4444; color:#ef4444;
+                 background:rgba(239,68,68,0.07); }
 </style>
 </head>
 <body>
@@ -72,7 +66,10 @@
   <div>
     <div class="header-row" style="margin-bottom:8px">
       <div class="label">Preview</div>
-      <button id="apply" class="btn-primary" disabled>Apply</button>
+      <div style="display:flex; gap:8px">
+        <button id="randomize" class="btn-primary">Randomize</button>
+        <button id="apply" class="btn-primary" style="display:none">Apply</button>
+      </div>
     </div>
     <div class="preview" id="preview"></div>
   </div>
@@ -84,7 +81,13 @@
   <div id="form">
     <div style="display:flex; flex-direction:column; gap:24px">
       <div>
-        <div class="label" style="margin-bottom:8px">Presets</div>
+        <div class="header-row" style="margin-bottom:8px">
+          <div class="label">Presets</div>
+          <div style="display:flex; gap:8px">
+            <button id="deletePreset" class="btn-primary btn-danger" style="display:none">Delete</button>
+            <button id="save" class="btn-primary" style="display:none">Save preset</button>
+          </div>
+        </div>
         <div class="presets" id="presets"></div>
       </div>
 
@@ -92,10 +95,7 @@
 
       <div style="display:flex; flex-direction:column; gap:12px">
         <input type="text" id="name" placeholder="Style name" />
-        <div class="cols">
-          <div class="row"><input type="color" id="c1" /><input type="text" id="c1t" /></div>
-          <div class="row"><input type="color" id="c2" /><input type="text" id="c2t" /></div>
-        </div>
+        <div id="colorRows" style="display:flex; flex-direction:column; gap:8px"></div>
         <select id="type">
           <option value="diagonal">Diagonal blend</option>
           <option value="linear">Soft linear blend</option>
@@ -118,29 +118,47 @@
         <div class="row"><div class="label">Grain scale</div>
           <input type="range" id="gscale" min="20" max="200" step="10" /><div class="val" id="gscaleV"></div></div>
       </div>
-
-      <div class="save-row" id="saveRow" data-visible="0">
-        <button class="btn-text" id="save">Save preset</button>
-      </div>
     </div>
   </div>
 </div>
 
 <script>
 const BUILTIN = [
-  { name:'Vibrant Mint / Orange', color1:'#98FFD9', color2:'#FF6B00', type:'diagonal', angle:135, softness:50, grain:18 },
-  { name:'Cool Sage / Oat',       color1:'#8DAA81', color2:'#F5E8D3', type:'linear',   angle:160, softness:90, grain:18 },
-  { name:'Coral / Navy',          color1:'#1A374D', color2:'#E08E8D', type:'radial',   angle:0,   softness:85, grain:18 },
-  { name:'Rose / Plum',           color1:'#4D1A40', color2:'#B56576', type:'vertical', angle:180, softness:100, grain:18 },
-  { name:'Futuristic Purple',     color1:'#FF00FF', color2:'#1A1A4D', type:'diagonal', angle:135, softness:50, grain:18 },
-  { name:'Forest / Sky Blue',     color1:'#1A4D2E', color2:'#87CEEB', type:'sharp',    angle:115, softness:8,  grain:18 }
+  { name:'Vibrant Mint / Orange', colors:['#98FFD9','#FF6B00'], type:'diagonal', angle:135, softness:50, grain:18 },
+  { name:'Cool Sage / Oat',       colors:['#8DAA81','#F5E8D3'], type:'linear',   angle:160, softness:90, grain:18 },
+  { name:'Coral / Navy',          colors:['#1A374D','#E08E8D'], type:'radial',   angle:0,   softness:85, grain:18 },
+  { name:'Rose / Plum',           colors:['#4D1A40','#8B3A5C','#B56576'], type:'vertical', angle:180, softness:100, grain:18 },
+  { name:'Futuristic Purple',     colors:['#FF00FF','#8B00FF','#1A1A4D'], type:'diagonal', angle:135, softness:50, grain:18 },
+  { name:'Forest / Sky Blue',     colors:['#1A4D2E','#87CEEB'], type:'sharp',    angle:115, softness:8,  grain:18 }
 ];
 
-const DIRTY_KEYS = ['name', 'color1', 'color2', 'type', 'angle', 'softness', 'grain', 'grainScale', 'offsetX', 'offsetY'];
+// RENDER_KEYS is the subset of fields that actually affect buildPaint/
+// cssGradient output — used to tell whether the canvas is out of date
+// with the current spec. DIRTY_KEYS adds 'name' on top, for "Save preset"
+// (renaming and saving as new is meaningful even though it doesn't change
+// what's rendered).
+const RENDER_KEYS = ['type', 'angle', 'softness', 'grain', 'grainScale', 'offsetX', 'offsetY'];
+const DIRTY_KEYS = ['name'].concat(RENDER_KEYS);
+
+// Every spec/preset snapshot needs its own colors array — spec.colors is
+// mutated in place as the user edits, so sharing the array reference
+// between a preset and the live spec (or spec and baseSpec/appliedSpec)
+// would let an edit silently corrupt an already-saved preset, or make
+// comparisons compare the array to itself and never detect a change.
+function cloneSpec(s) {
+  return Object.assign({}, s, { colors: s.colors.slice() });
+}
+
+function specsEqual(a, b, keys) {
+  if (a.colors.length !== b.colors.length) return false;
+  if (a.colors.some((c, i) => c !== b.colors[i])) return false;
+  return keys.every(k => a[k] === b[k]);
+}
 
 let custom = [];
-let spec = Object.assign({}, BUILTIN[0], { grainScale:80, offsetX:0, offsetY:0 });
-let baseSpec = Object.assign({}, spec);
+let spec = cloneSpec(Object.assign({}, BUILTIN[0], { grainScale:80, offsetX:0, offsetY:0 }));
+let baseSpec = cloneSpec(spec);
+let appliedSpec = cloneSpec(spec);
 let activeIndex = 0;
 let hasSelection = false;
 
@@ -153,9 +171,14 @@ function angleFor(s) {
 
 function cssGradient(s) {
   const a = Math.max(0, 50 - s.softness * 0.5), b = Math.min(100, 50 + s.softness * 0.5);
-  if (s.type === 'radial')
-    return `radial-gradient(ellipse 70% 90% at ${50 + s.offsetX}% ${62 + s.offsetY}%, ${s.color2} ${a}%, ${s.color1} ${b}%)`;
-  return `linear-gradient(${angleFor(s)}deg, ${s.color1} ${a}%, ${s.color2} ${b}%)`;
+  if (s.type === 'radial') {
+    const ox = typeof s.offsetX === 'number' ? s.offsetX : 0;
+    const oy = typeof s.offsetY === 'number' ? s.offsetY : 0;
+    return `radial-gradient(ellipse 70% 90% at ${50 + ox}% ${62 + oy}%, ${s.colors[1]} ${a}%, ${s.colors[0]} ${b}%)`;
+  }
+  const n = s.colors.length;
+  const stops = s.colors.map((hex, i) => `${hex} ${a + (b - a) * (i / (n - 1))}%`).join(', ');
+  return `linear-gradient(${angleFor(s)}deg, ${stops})`;
 }
 
 function cssNoise(s) {
@@ -165,7 +188,11 @@ function cssNoise(s) {
 }
 
 function isDirty() {
-  return DIRTY_KEYS.some(k => spec[k] !== baseSpec[k]);
+  return !specsEqual(spec, baseSpec, DIRTY_KEYS);
+}
+
+function isUnapplied() {
+  return hasSelection && !specsEqual(spec, appliedSpec, RENDER_KEYS);
 }
 
 function renderPresets() {
@@ -179,8 +206,8 @@ function renderPresets() {
     el.dataset.on = i === activeIndex ? '1' : '0';
     el.onclick = () => {
       activeIndex = i;
-      spec = Object.assign({ grainScale: spec.grainScale, offsetX: spec.offsetX, offsetY: spec.offsetY }, p);
-      baseSpec = Object.assign({}, spec);
+      spec = cloneSpec(Object.assign({ grainScale: spec.grainScale, offsetX: spec.offsetX, offsetY: spec.offsetY }, p));
+      baseSpec = cloneSpec(spec);
       syncInputs(); render();
       applyToSelection();
     };
@@ -198,14 +225,14 @@ function render() {
   $('radialControls').style.display = spec.type === 'radial' ? 'flex' : 'none';
   $('offsetXV').textContent = (spec.offsetX > 0 ? '+' : '') + spec.offsetX;
   $('offsetYV').textContent = (spec.offsetY > 0 ? '+' : '') + spec.offsetY;
-  $('saveRow').dataset.visible = isDirty() ? '1' : '0';
+  $('apply').style.display = isUnapplied() ? '' : 'none';
+  $('deletePreset').style.display = activeIndex >= BUILTIN.length ? '' : 'none';
+  $('save').style.display = isDirty() ? '' : 'none';
   renderPresets();
 }
 
 function syncInputs() {
   $('name').value = spec.name || '';
-  $('c1').value = spec.color1; $('c1t').value = spec.color1;
-  $('c2').value = spec.color2; $('c2t').value = spec.color2;
   $('type').value = spec.type;
   $('angle').value = angleFor(spec);
   $('offsetX').value = spec.offsetX;
@@ -213,26 +240,109 @@ function syncInputs() {
   $('soft').value = spec.softness;
   $('grain').value = spec.grain;
   $('gscale').value = spec.grainScale;
+  renderColorRows();
 }
 
-// Slider/field edits only update the live preview — they no longer touch
-// the canvas on every input tick (that caused visible lag while dragging).
-// Canvas writes happen on preset click or the Apply button, see below.
-function bind(id, key, transform) {
-  $(id).addEventListener('input', e => {
-    spec[key] = transform ? transform(e.target.value) : e.target.value;
-    if (id === 'c1') $('c1t').value = spec.color1;
-    if (id === 'c2') $('c2t').value = spec.color2;
-    if (id === 'c1t') $('c1').value = spec.color1;
-    if (id === 'c2t') $('c2').value = spec.color2;
-    render();
+// One full-width row per color stop, rebuilt whenever the stop count might
+// have changed (i.e. after loading a preset via syncInputs()). Editing an
+// existing swatch/hex just mutates spec.colors[i] in place — no rebuild.
+function renderColorRows() {
+  const container = $('colorRows');
+  container.innerHTML = '';
+  spec.colors.forEach((hex, i) => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const picker = document.createElement('input');
+    picker.type = 'color';
+    picker.value = hex;
+    const text = document.createElement('input');
+    text.type = 'text';
+    text.value = hex;
+    const commit = () => applyToSelection();
+    picker.addEventListener('input', () => {
+      spec.colors[i] = picker.value;
+      text.value = picker.value;
+      render();
+    });
+    picker.addEventListener('change', commit);
+    text.addEventListener('input', () => {
+      spec.colors[i] = text.value;
+      picker.value = text.value;
+      render();
+    });
+    text.addEventListener('change', commit);
+    row.appendChild(picker);
+    row.appendChild(text);
+    container.appendChild(row);
   });
 }
-bind('name','name'); bind('c1','color1'); bind('c1t','color1');
-bind('c2','color2'); bind('c2t','color2'); bind('type','type');
+
+// Slider/field edits only update the live preview on 'input' — they no
+// longer touch the canvas on every drag tick (that caused visible lag).
+// Once the edit settles (native 'change': mouse-up, blur, Enter, closing
+// the color picker), it auto-applies to the selected layer(s). autoApply
+// can be turned off for fields that don't affect the rendered gradient at
+// all (just the style name), where re-applying would be a no-op write.
+function bind(id, key, transform, autoApply) {
+  if (autoApply === undefined) autoApply = true;
+  $(id).addEventListener('input', e => {
+    spec[key] = transform ? transform(e.target.value) : e.target.value;
+    render();
+  });
+  if (autoApply) {
+    $(id).addEventListener('change', () => applyToSelection());
+  }
+}
+bind('name','name',null,false); bind('type','type');
 bind('angle','angle',Number); bind('soft','softness',Number);
 bind('grain','grain',Number); bind('gscale','grainScale',Number);
 bind('offsetX','offsetX',Number); bind('offsetY','offsetY',Number);
+
+// Color-theory-based randomizer: picks a recognized hue-harmony scheme
+// (complementary/analogous for 2 stops; triadic/split-complementary/
+// analogous for 3), anchors it to a random base hue, and draws each stop's
+// saturation/lightness from a "modern" range rather than raw random RGB
+// (which tends to produce muddy or gaudy pairs). Lightness is drawn from a
+// fixed band per stop index, spaced far enough apart that adjacent stops
+// stay clearly distinct even with jitter — contrast by construction,
+// rather than computing contrast ratios and retrying unlucky draws.
+const HUE_SCHEMES = {
+  2: [[0, 180], [0, 32]],
+  3: [[0, 120, 240], [0, 150, 210], [0, 30, 60]]
+};
+const LIGHTNESS_BANDS = {
+  2: [30, 70],
+  3: [28, 52, 76]
+};
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const toHex = x => Math.round(x * 255).toString(16).padStart(2, '0');
+  return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+}
+
+function randomizeColors() {
+  const n = spec.colors.length;
+  const schemes = HUE_SCHEMES[n] || HUE_SCHEMES[2];
+  const offsets = schemes[Math.floor(Math.random() * schemes.length)];
+  const bands = LIGHTNESS_BANDS[n] || LIGHTNESS_BANDS[2];
+  const baseHue = Math.random() * 360;
+  spec.colors = offsets.map((offset, i) => {
+    const h = (baseHue + offset) % 360;
+    const s = 45 + Math.random() * 23; // 45-68%, modern/moderate rather than neon
+    const l = Math.max(0, Math.min(100, bands[i] + (Math.random() * 16 - 8)));
+    return hslToHex(h, s, l);
+  });
+}
+
+$('randomize').onclick = () => {
+  randomizeColors();
+  renderColorRows();
+  render();
+};
 
 // Noise bitmap for the Figma image fill — generated here, sent as bytes.
 // Cached per grainScale since the amount (opacity) is applied on the Figma side.
@@ -276,16 +386,26 @@ async function applyToSelection() {
   const noise = await noiseBytes();
   if (token !== applyToken) return; // a newer apply superseded this one
   parent.postMessage({ pluginMessage: { type:'apply', spec, noise: noise ? Array.from(noise) : null } }, '*');
-  $('apply').disabled = !hasSelection;
+  appliedSpec = cloneSpec(spec);
+  $('apply').disabled = false;
   $('apply').textContent = 'Apply';
+  render(); // now up to date with appliedSpec — hides Apply if nothing else changed
 }
 
 $('apply').onclick = applyToSelection;
 
 $('save').onclick = () => {
-  custom.push(Object.assign({}, spec));
+  custom.push(cloneSpec(spec));
   activeIndex = BUILTIN.length + custom.length - 1;
-  baseSpec = Object.assign({}, spec);
+  baseSpec = cloneSpec(spec);
+  parent.postMessage({ pluginMessage: { type:'save-presets', presets: custom } }, '*');
+  render();
+};
+
+$('deletePreset').onclick = () => {
+  if (activeIndex < BUILTIN.length) return; // only custom presets are deletable
+  custom.splice(activeIndex - BUILTIN.length, 1);
+  activeIndex = -1; // nothing considered "active" — don't silently swap the live preview
   parent.postMessage({ pluginMessage: { type:'save-presets', presets: custom } }, '*');
   render();
 };
@@ -300,6 +420,7 @@ function setSelection(sel) {
   } else {
     $('preview').style.aspectRatio = '19 / 9';
   }
+  render(); // hasSelection changed — Apply's visibility (isUnapplied) depends on it
 }
 
 onmessage = e => {
@@ -310,8 +431,7 @@ onmessage = e => {
 };
 
 syncInputs();
-render();
-setSelection({ hasSelection: false });
+setSelection({ hasSelection: false }); // also runs the initial render()
 parent.postMessage({ pluginMessage: { type:'ui-ready' } }, '*');
 </script>
 </body>
